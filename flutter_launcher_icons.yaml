@@ -1,0 +1,15 @@
+# Ícone provisório do app, até a identidade visual. Para trocar, substitua as imagens de
+# assets/branding/ e rode: fvm dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: assets/branding/icon.png
+  android: true
+  ios: true
+  # A App Store não aceita ícone com transparência.
+  remove_alpha_ios: true
+  # Ícone adaptativo (Android 8+). A cor é a mesma de AppColors.seed.
+  adaptive_icon_background: '#E65100'
+  adaptive_icon_foreground: assets/branding/icon_foreground.png
+  # A imagem já deixa a margem de segurança (o pino fica no círculo central de 2/3).
+  adaptive_icon_foreground_inset: 0
+  # Ícone tematizado (Android 13+).
+  adaptive_icon_monochrome: assets/branding/icon_foreground.png
