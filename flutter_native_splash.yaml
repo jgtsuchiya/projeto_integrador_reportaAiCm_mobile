@@ -1,0 +1,11 @@
+# Splash provisório, até a identidade visual: o pino do ícone sobre a cor-base (AppColors.seed).
+# Para trocar, substitua as imagens de assets/branding/ e rode:
+# fvm dart run flutter_native_splash:create
+flutter_native_splash:
+  color: '#E65100'
+  image: assets/branding/icon_foreground.png
+  # O Android 12+ tem o próprio splash: o ícone num círculo, sobre a cor.
+  android_12:
+    color: '#E65100'
+    image: assets/branding/icon_foreground.png
+  web: false
