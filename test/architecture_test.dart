@@ -87,6 +87,31 @@ void main() {
       expect(violationsOf(file, 'package:reportaai_cm/app/router.dart'), hasLength(1));
     });
 
+    test('deve acusar o SDK do SuperTokens fora do core/auth', () {
+      for (final file in [
+        view,
+        repository,
+        'lib/main.dart',
+        'lib/core/network/dio_provider.dart',
+      ]) {
+        expect(
+          violationsOf(file, 'package:supertokens_flutter/supertokens.dart'),
+          hasLength(1),
+          reason: file,
+        );
+      }
+    });
+
+    test('deve aceitar o SDK do SuperTokens no core/auth', () {
+      expect(
+        violationsOf(
+          'lib/core/auth/supertokens_session_manager.dart',
+          'package:supertokens_flutter/dio.dart',
+        ),
+        isEmpty,
+      );
+    });
+
     test('deve acusar o Material do Flutter no lugar do material_ui', () {
       expect(violationsOf(view, 'package:flutter/material.dart'), hasLength(1));
       expect(violationsOf(view, 'package:flutter/cupertino.dart'), hasLength(1));
@@ -146,6 +171,12 @@ final architectureRules = [
     description: 'core/ não importa features/ nem app/: é o código compartilhado por todos',
     appliesTo: (file) => file.startsWith('lib/core/'),
     isForbidden: (import) => import.startsWith('lib/features/') || import.startsWith('lib/app/'),
+  ),
+  ArchitectureRule(
+    description:
+        'só o core/auth/ importa o SDK do SuperTokens: o resto do app usa o SessionManager',
+    appliesTo: (file) => !file.startsWith('lib/core/auth/'),
+    isForbidden: (import) => _isPackage(import, ['supertokens_flutter']),
   ),
   ArchitectureRule(
     description: 'o Material vem do material_ui, não do package:flutter/material.dart',
