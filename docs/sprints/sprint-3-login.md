@@ -1,6 +1,6 @@
-# Sprint 4 (20/10 - 02/11): login e tela inicial do app
+# Sprint 3 (07/10 - 26/10): login e tela inicial do app
 
-Plano do mobile para o cidadão entrar no app e ver os próprios dados. Usa o que o backend entregou nas sprints 2 e 3: o login pelo **SuperTokens** (`POST /api/auth/signin`), a sessão por header com renovação automática e o `GET /api/users/me`. Roda em cima da base do [plano de configuração](sprint-4-configuracao.md).
+Plano do mobile para o cidadão entrar no app e ver os próprios dados. Usa o que o backend entregou nas sprints 2 e 3: o login pelo **SuperTokens** (`POST /api/auth/signin`), a sessão por header com renovação automática e o `GET /api/users/me`. Roda em cima da base do [plano de configuração](sprint-3-configuracao.md).
 
 As regras do backend (RN01 a RN25) continuam valendo e são citadas quando o app depende delas. As regras próprias do app usam o prefixo **RM**.
 
@@ -127,7 +127,7 @@ Para testar a renovação da sessão sem esperar 15 minutos, baixe o `ACCESS_TOK
 
 ## 6. Labels
 
-As mesmas do épico de configuração: o epic recebe `Epic` + `Sprint 4 - 20/10 - 02/11`, e cada task recebe `Task` + a label da sprint.
+As mesmas do épico de configuração: o epic recebe `Epic` + `Sprint 3 - 07/10 - 26/10`, e cada task recebe `Task` + a label da sprint.
 
 ## 7. Ordem e dependências
 
@@ -152,7 +152,7 @@ Para não travar as telas, entregue primeiro os contratos e os fakes da T2, num 
 ### EPIC
 
 **Título:** `[EPIC] Login e tela inicial do app`
-**Labels:** `Epic`, `Sprint 4 - 20/10 - 02/11`
+**Labels:** `Epic`, `Sprint 3 - 07/10 - 26/10`
 
 ```markdown
 O cidadão entra no app com e-mail e senha e vê os próprios dados. É a primeira entrega de negócio do mobile e a base de todas as telas autenticadas que vêm depois (cadastro, reportes e perfil).

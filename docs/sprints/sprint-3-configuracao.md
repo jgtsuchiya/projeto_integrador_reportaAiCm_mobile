@@ -1,8 +1,8 @@
-# Sprint 4 (20/10 - 02/11): configuração do app mobile
+# Sprint 3 (07/10 - 26/10): configuração do app mobile
 
 Plano do mobile para montar a base do app do cidadão em **Flutter**: projeto, arquitetura, qualidade, ambientes, cliente HTTP e pipeline. Nenhuma tela de negócio entra aqui. O épico entrega um app que abre, fala com a API local e segue o mesmo fluxo de trabalho do backend (Git Flow, Conventional Commits e PR com CI).
 
-O login e a tela inicial ficam no plano seguinte, [login e tela inicial](sprint-4-login.md), que começa em cima desta base.
+O login e a tela inicial ficam no plano seguinte, [login e tela inicial](sprint-3-login.md), que começa em cima desta base.
 
 ## 1. Decisões
 
@@ -124,7 +124,7 @@ O `localhost` do aparelho não é o da sua máquina:
 
 ## 5. Labels
 
-O repositório do mobile não tem as labels do backend. Crie **`Epic`**, **`Task`** e **`Sprint 4 - 20/10 - 02/11`**. O epic recebe `Epic` + a label da sprint, e cada task recebe `Task` + a label da sprint.
+O repositório do mobile não tem as labels do backend. Crie **`Epic`**, **`Task`** e **`Sprint 3 - 07/10 - 26/10`**. O epic recebe `Epic` + a label da sprint, e cada task recebe `Task` + a label da sprint.
 
 ## 6. Ordem e dependências
 
@@ -156,7 +156,7 @@ O épico de login depende da T3, da T6, da T7 e da T8. São elas que precisam te
 ### EPIC
 
 **Título:** `[EPIC] Configuração e arquitetura do app mobile`
-**Labels:** `Epic`, `Sprint 4 - 20/10 - 02/11`
+**Labels:** `Epic`, `Sprint 3 - 07/10 - 26/10`
 
 ```markdown
 Base do app mobile do ReportaAi Cm, o app do cidadão, em Flutter. O épico não entrega nenhuma tela de negócio: ele deixa o projeto pronto para as features entrarem com qualidade desde o primeiro PR.
