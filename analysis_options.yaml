@@ -1,0 +1,21 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+# Mesma largura do Prettier do backend. O `dart format` e o VS Code leem daqui.
+formatter:
+  page_width: 100
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    # Arquivos gerados (build_runner), para quando existirem.
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+
+linter:
+  rules:
+    # É um app, não uma biblioteca: a documentação fica nos pontos que precisam dela.
+    public_member_api_docs: false
+    # A largura é a do formatter, acima.
+    lines_longer_than_80_chars: false
