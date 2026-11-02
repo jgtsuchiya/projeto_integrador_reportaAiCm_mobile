@@ -21,15 +21,21 @@ dependencies:
   material_ui: 1.7.0
   # Anotações em Dart puro (ex.: @immutable), que o domínio pode usar sem importar o Flutter.
   meta: 1.18.3
+  # Sessão do SuperTokens (ver docs/sprints/sprint-3-login.md). Só o lib/core/auth/ importa.
+  supertokens_flutter: 0.6.5
 
 dev_dependencies:
   flutter_launcher_icons: 0.14.4
   flutter_native_splash: 2.4.8
   flutter_test:
     sdk: flutter
+  # As mesmas versões que o supertokens_flutter usa: os testes do core/auth trocam a rede do SDK
+  # (pacote http) e o armazenamento dos tokens (SharedPreferences) por versões em memória.
+  http: 1.6.0
   integration_test:
     sdk: flutter
   mocktail: 1.0.5
+  shared_preferences: 2.5.6
   very_good_analysis: 11.0.0
 
 flutter:
