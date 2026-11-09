@@ -197,6 +197,8 @@ void main() {
       fakes.profile.result = adminProfile;
       await openApp(tester);
 
+      await tester.enterText(find.widgetWithText(TextFormField, 'E-mail'), adminProfile.email);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Senha'), 'SenhaSecreta123');
       await tester.tap(find.text('Entrar'));
       await tester.pumpAndSettle();
 

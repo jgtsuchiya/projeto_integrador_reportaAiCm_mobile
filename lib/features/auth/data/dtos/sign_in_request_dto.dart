@@ -1,3 +1,5 @@
+import 'package:reportaai_cm/features/auth/domain/models/email.dart';
+
 /// O corpo do `POST /api/auth/signin`, no formato do SuperTokens:
 /// `{ "formFields": [{ "id": "email", "value": "..." }, { "id": "password", "value": "..." }] }`.
 final class SignInRequestDto {
@@ -10,7 +12,7 @@ final class SignInRequestDto {
   /// vai como foi digitada.
   Map<String, Object?> toJson() => {
     'formFields': [
-      {'id': 'email', 'value': email.trim().toLowerCase()},
+      {'id': 'email', 'value': normalizeEmail(email)},
       {'id': 'password', 'value': password},
     ],
   };
