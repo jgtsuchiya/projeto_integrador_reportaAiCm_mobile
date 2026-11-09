@@ -281,6 +281,105 @@ void main() {
       });
     });
 
+    group('refreshProfile', () {
+      final verifiedProfile = clientProfileWith(emailVerifiedAt: DateTime.utc(2026, 10, 5, 12));
+
+      setUp(() => fakes.session.hasStoredSession = true);
+
+      test('deve guardar o perfil novo, como o e-mail confirmado no navegador', () async {
+        await open();
+        fakes.profile.result = verifiedProfile;
+
+        await sut().refreshProfile();
+
+        expect(state(), AuthAuthenticated(verifiedProfile));
+        expect(fakes.profile.calls, 2);
+        expect(fakes.session.signOutCalls, 0);
+      });
+
+      for (final error in [const NetworkException(), const ServerException(statusCode: 500)]) {
+        test('deve lançar a ${error.runtimeType} e continuar com o perfil que já tinha', () async {
+          await open();
+          fakes.profile.error = error;
+
+          await expectLater(sut().refreshProfile(), throwsA(error));
+
+          expect(state(), AuthAuthenticated(clientProfile));
+          expect(fakes.session.hasStoredSession, isTrue);
+        });
+      }
+
+      test('deve voltar ao login com o aviso quando a API recusa a sessão (RM07)', () async {
+        await open();
+        fakes.profile.error = const UnauthorizedException();
+
+        await sut().refreshProfile();
+
+        expect(state(), _sessionExpired);
+      });
+
+      test('deve sair e avisar quando o papel não é mais o CLIENT (RM01)', () async {
+        await open();
+        fakes.profile.result = adminProfile;
+
+        await sut().refreshProfile();
+        await pumpEventQueue();
+
+        // O evento da saída chega com a tela inicial aberta e não apaga o motivo.
+        expect(state(), _roleNotAllowed);
+        expect(fakes.session.signOutCalls, 1);
+      });
+
+      test(
+        'deve sair e avisar quando o perfil responde que falta a segunda etapa (RM08)',
+        () async {
+          await open();
+          fakes.profile.error = const SecondFactorPendingException();
+
+          await sut().refreshProfile();
+          await pumpEventQueue();
+
+          expect(state(), _secondFactorPending);
+          expect(fakes.session.signOutCalls, 1);
+        },
+      );
+
+      test('não deve buscar o perfil sem o Client dentro', () async {
+        fakes.session.hasStoredSession = false;
+        await open();
+
+        await sut().refreshProfile();
+
+        expect(state(), _signedOut);
+        expect(fakes.profile.calls, 0);
+      });
+
+      test('deve descartar o perfil quando a sessão acaba no meio da atualização', () async {
+        await open();
+        final profile = fakes.profile.pending = Completer<UserProfile>();
+
+        final refresh = sut().refreshProfile();
+        fakes.session.expire();
+        await pumpEventQueue();
+        profile.complete(verifiedProfile);
+        await refresh;
+
+        expect(state(), _sessionExpired);
+      });
+
+      test('deve descartar o perfil quando o usuário sai no meio da atualização', () async {
+        await open();
+        final profile = fakes.profile.pending = Completer<UserProfile>();
+
+        final refresh = sut().refreshProfile();
+        await sut().signOut();
+        profile.complete(verifiedProfile);
+        await refresh;
+
+        expect(state(), _signedOut);
+      });
+    });
+
     group('signOut', () {
       test('deve encerrar a sessão e voltar ao login, sem aviso', () async {
         fakes.session.hasStoredSession = true;

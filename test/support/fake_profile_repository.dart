@@ -38,6 +38,25 @@ final clientProfile = UserProfile(
   birthDate: DateTime(1990, 5, 20),
 );
 
+/// O [clientProfile] com os campos trocados, como o perfil que volta depois de o Client confirmar
+/// o e-mail ([emailVerifiedAt]).
+UserProfile clientProfileWith({String? name, String? phone, DateTime? emailVerifiedAt}) =>
+    UserProfile(
+      id: clientProfile.id,
+      role: clientProfile.role,
+      name: name ?? clientProfile.name,
+      email: clientProfile.email,
+      status: clientProfile.status,
+      mfaEnabled: clientProfile.mfaEnabled,
+      lastLoginAt: clientProfile.lastLoginAt,
+      createdAt: clientProfile.createdAt,
+      updatedAt: clientProfile.updatedAt,
+      emailVerifiedAt: emailVerifiedAt ?? clientProfile.emailVerifiedAt,
+      cpf: clientProfile.cpf,
+      phone: phone ?? clientProfile.phone,
+      birthDate: clientProfile.birthDate,
+    );
+
 /// Um ADM, que não entra no app (RM01): sem os campos do Client e com o e-mail confirmado.
 final adminProfile = UserProfile(
   id: '7d0c2a8e-5b1f-4f0e-9a51-1c3f2b6d8e90',
