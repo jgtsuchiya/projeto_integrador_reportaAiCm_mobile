@@ -19,9 +19,9 @@ final NotifierProvider<AuthController, AuthState> authControllerProvider = Notif
   AuthController.new,
 );
 
-/// A fonte da verdade do login: confere a sessão na abertura, entra, sai e acompanha o fim da
-/// sessão. As telas chamam as ações e ouvem o [AuthState], e o redirect das rotas leva à tela
-/// certa.
+/// A fonte da verdade do login: confere a sessão na abertura, entra, atualiza o perfil, sai e
+/// acompanha o fim da sessão. As telas chamam as ações e ouvem o [AuthState], e o redirect das
+/// rotas leva à tela certa.
 ///
 /// Depois que existe uma sessão, na abertura ou no login, os passos são sempre os mesmos: a
 /// segunda etapa pendente (RM08), o `GET /api/users/me` e o papel CLIENT (RM01).
@@ -32,6 +32,10 @@ final class AuthController extends Notifier<AuthState> {
   /// Conta as operações (abertura, login e saída) e os eventos da sessão. Uma operação só guarda
   /// o resultado se nada mudou o estado enquanto ela esperava a API.
   int _operation = 0;
+
+  /// Se o próprio controller está encerrando a sessão que não pode entrar (RM01 e RM08). O evento
+  /// dessa saída é ignorado: quem guarda o motivo é a operação, no próximo estado.
+  bool _isLeaving = false;
 
   /// Começa conferindo a sessão guardada: o app abre na tela de abertura.
   @override
@@ -67,6 +71,26 @@ final class AuthController extends Notifier<AuthState> {
     return result;
   }
 
+  /// "Puxar para atualizar" da tela inicial: busca o perfil de novo (ex.: depois de o Client
+  /// confirmar o e-mail no navegador), com as mesmas conferências da entrada. Sem rede ou com a
+  /// API fora do ar, lança a `ApiException`, e o estado continua com o perfil que já estava na
+  /// tela. Quando a sessão não vale mais, volta ao login com o motivo.
+  Future<void> refreshProfile() async {
+    if (state is! AuthAuthenticated) return;
+
+    final operation = ++_operation;
+
+    AuthState next;
+    try {
+      next = await _loadProfile();
+    } on UnauthorizedException {
+      // A API recusou a sessão e o SDK a apagou (RM07).
+      next = const AuthUnauthenticated(reason: UnauthenticatedReason.sessionExpired);
+    }
+
+    if (operation == _operation) _setState(next);
+  }
+
   /// "Sair": encerra a sessão na API e volta ao login, sem aviso. Sem conexão, lança a
   /// `NetworkException`, e o usuário continua logado (RM10).
   Future<void> signOut() async {
@@ -86,8 +110,9 @@ final class AuthController extends Notifier<AuthState> {
       (SessionEvent.expired, _) => const AuthUnauthenticated(
         reason: UnauthenticatedReason.sessionExpired,
       ),
-      // Na abertura, quem saiu foi a própria operação (RM01 e RM08), e ela guarda o motivo.
-      (SessionEvent.signedOut, AuthChecking()) => null,
+      // Quem saiu foi a própria operação (RM01 e RM08), na abertura ou ao atualizar o perfil, e
+      // ela guarda o motivo.
+      (SessionEvent.signedOut, _) when _isLeaving => null,
       (SessionEvent.signedOut, _) => const AuthUnauthenticated(),
     };
 
@@ -107,6 +132,11 @@ final class AuthController extends Notifier<AuthState> {
       return await _leave(UnauthenticatedReason.secondFactorPending);
     }
 
+    return await _loadProfile();
+  }
+
+  /// O `GET /api/users/me` e o papel CLIENT (RM01), na entrada e ao atualizar o perfil.
+  Future<AuthState> _loadProfile() async {
     final UserProfile profile;
     try {
       profile = await _profile.getMe();
@@ -122,6 +152,7 @@ final class AuthController extends Notifier<AuthState> {
 
   /// Encerra a sessão que não pode entrar no app e volta ao login com o [reason].
   Future<AuthState> _leave(UnauthenticatedReason reason) async {
+    _isLeaving = true;
     try {
       await _auth.signOut();
     } on ApiException {
@@ -154,6 +185,7 @@ final class AuthController extends Notifier<AuthState> {
   /// Muda o estado e descarta a operação em andamento.
   void _setState(AuthState next) {
     _operation++;
+    _isLeaving = false;
     // O provider pode ter sido descartado enquanto a operação esperava a API.
     if (ref.mounted) state = next;
   }

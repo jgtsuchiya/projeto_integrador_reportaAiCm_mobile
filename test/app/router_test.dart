@@ -17,6 +17,7 @@ import '../support/auth_fakes.dart';
 import '../support/fake_health_repository.dart';
 import '../support/fake_profile_repository.dart';
 import '../support/pump_app.dart';
+import '../support/sign_out.dart';
 
 void main() {
   group('redirectFor', () {
@@ -223,7 +224,7 @@ void main() {
       fakes.session.hasStoredSession = true;
       await openApp(tester);
 
-      await tester.tap(find.text('Sair'));
+      await tester.signOutAndConfirm();
       await tester.pumpAndSettle();
 
       expect(find.byType(LoginView), findsOneWidget);
