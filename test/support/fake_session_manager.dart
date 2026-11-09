@@ -18,6 +18,9 @@ final class FakeSessionManager implements SessionManager {
   /// Lançado na próxima chamada do [signOut], como sem conexão (RM10). A sessão continua.
   Exception? signOutError;
 
+  /// Enquanto não é completado, o [signOut] fica pendente: é o "Sair" em andamento.
+  Completer<void>? signOutPending;
+
   int signOutCalls = 0;
 
   final _events = StreamController<SessionEvent>.broadcast();
@@ -45,6 +48,9 @@ final class FakeSessionManager implements SessionManager {
   @override
   Future<void> signOut() async {
     signOutCalls++;
+
+    final pending = signOutPending;
+    if (pending != null) await pending.future;
 
     final error = signOutError;
     if (error != null) throw error;

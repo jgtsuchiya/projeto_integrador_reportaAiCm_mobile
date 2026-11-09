@@ -40,6 +40,27 @@ void main() {
       expect(find.text('Tentar de novo'), findsNothing);
     });
 
+    testWidgets('deve mostrar a ação secundária embaixo do "Tentar de novo"', (tester) async {
+      final onSignOut = _MockCallback();
+      await tester.pumpApp(
+        Scaffold(
+          body: ErrorView(
+            message: message,
+            onRetry: () {},
+            secondaryAction: TextButton(onPressed: onSignOut.call, child: const Text('Sair')),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Sair'));
+
+      verify(onSignOut.call).called(1);
+      expect(
+        tester.getTopLeft(find.text('Sair')).dy,
+        greaterThan(tester.getTopLeft(find.text('Tentar de novo')).dy),
+      );
+    });
+
     testWidgets('deve rolar, sem cortar o texto, com a fonte em 200%', (tester) async {
       tester.usePhoneScreen(textScale: 2);
       await tester.pumpApp(

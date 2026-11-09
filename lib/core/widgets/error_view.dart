@@ -6,11 +6,20 @@ import 'package:reportaai_cm/core/widgets/scrollable_center.dart';
 ///
 /// A [message] costuma vir de `ApiException.messageOf(error)`, já em português.
 class ErrorView extends StatelessWidget {
-  const new({required this.message, this.title = 'Algo deu errado', this.onRetry, super.key});
+  const new({
+    required this.message,
+    this.title = 'Algo deu errado',
+    this.onRetry,
+    this.secondaryAction,
+    super.key,
+  });
 
   final String title;
   final String message;
   final VoidCallback? onRetry;
+
+  /// Uma ação a mais, embaixo do "Tentar de novo", como o "Sair" da tela de abertura.
+  final Widget? secondaryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +46,7 @@ class ErrorView extends StatelessWidget {
             const SizedBox(height: 24),
             PrimaryButton(label: 'Tentar de novo', onPressed: onRetry),
           ],
+          if (secondaryAction case final action?) ...[const SizedBox(height: 8), action],
         ],
       ),
     );
