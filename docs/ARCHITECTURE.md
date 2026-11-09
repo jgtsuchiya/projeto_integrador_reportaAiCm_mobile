@@ -51,8 +51,10 @@ lib/
             └── widgets/               # widgets usados só nesta feature
 test/                            # espelha lib/
 ├── support/                     # pumpApp e fakes compartilhados
+├── flows/                       # fluxos do app inteiro, com os fakes
 └── architecture_test.dart       # confere a regra de dependência
 integration_test/                # fluxos ponta a ponta, contra a API local
+tool/                            # scripts do desenvolvimento e do CI (cobertura mínima)
 env/
 ├── dev.example.json             # versionado
 └── dev.json                     # ignorado pelo Git (o endereço muda por aparelho)
