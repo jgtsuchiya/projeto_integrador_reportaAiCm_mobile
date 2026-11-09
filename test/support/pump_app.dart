@@ -62,9 +62,15 @@ extension PumpApp on WidgetTester {
 
   /// Monta o app inteiro, como o `main`: as rotas do `routerProvider`, com o `AuthController`
   /// conferindo a sessão na abertura. Os [overrides] trocam a sessão e os repositórios pelos fakes
-  /// (ver o `AuthFakes`).
-  Future<void> pumpWholeApp({List<Override> overrides = const [], AppConfig? config}) {
-    return pumpWidget(_scope(overrides: overrides, config: config, child: const App()));
+  /// (ver o `AuthFakes`), e os [observers] acompanham os providers desde a criação deles.
+  Future<void> pumpWholeApp({
+    List<Override> overrides = const [],
+    List<ProviderObserver> observers = const [],
+    AppConfig? config,
+  }) {
+    return pumpWidget(
+      _scope(overrides: overrides, observers: observers, config: config, child: const App()),
+    );
   }
 
   /// Tela de um celular pequeno (360 x 640) com a fonte do sistema na [textScale], para conferir
@@ -83,9 +89,11 @@ ProviderScope _scope({
   required List<Override> overrides,
   required AppConfig? config,
   required Widget child,
+  List<ProviderObserver> observers = const [],
 }) {
   return ProviderScope(
     overrides: [appConfigProvider.overrideWithValue(config ?? testConfig), ...overrides],
+    observers: observers,
     retry: noAutomaticRetry,
     child: child,
   );
