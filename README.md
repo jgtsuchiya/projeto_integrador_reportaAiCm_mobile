@@ -92,7 +92,7 @@ fvm flutter run --dart-define-from-file=env/dev.json
 
 No VS Code, o passo 5 é a configuração **ReportaAi Cm (dev)** do _Run and Debug_ (F5), que já passa o `--dart-define-from-file`.
 
-O app abre na tela inicial. Para conferir a conexão com a API, toque em **Diagnóstico da API**: a tela mostra o endereço usado e **ok** quando a API responde. O atalho e a tela de diagnóstico só existem em debug.
+Sem uma sessão guardada, o app abre no login. Para conferir a conexão com a API, toque em **Diagnóstico da API**, embaixo do "Entrar": a tela mostra o endereço usado e **ok** quando a API responde. O atalho e a tela de diagnóstico só existem em debug.
 
 ## Conectando à API local
 

@@ -60,6 +60,13 @@ extension PumpApp on WidgetTester {
     );
   }
 
+  /// Monta o app inteiro, como o `main`: as rotas do `routerProvider`, com o `AuthController`
+  /// conferindo a sessão na abertura. Os [overrides] trocam a sessão e os repositórios pelos fakes
+  /// (ver o `AuthFakes`).
+  Future<void> pumpWholeApp({List<Override> overrides = const [], AppConfig? config}) {
+    return pumpWidget(_scope(overrides: overrides, config: config, child: const App()));
+  }
+
   /// Tela de um celular pequeno (360 x 640) com a fonte do sistema na [textScale], para conferir
   /// que nada é cortado. Tudo volta ao padrão no fim do teste.
   void usePhoneScreen({double textScale = 1}) {
