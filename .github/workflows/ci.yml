@@ -33,6 +33,8 @@ jobs:
           name: coverage
           path: coverage/lcov.info
           if-no-files-found: error
+      # Depois do upload, para o relatório ficar disponível também quando a cobertura não basta.
+      - run: dart run tool/check_coverage.dart
 
   build-android:
     name: Build Android
