@@ -12,6 +12,7 @@ import 'package:reportaai_cm/features/profile/domain/models/user_profile.dart';
 import '../../../../support/auth_fakes.dart';
 import '../../../../support/fake_profile_repository.dart';
 import '../../../../support/pump_app.dart';
+import '../../../../support/sign_out.dart';
 
 const _errorTitle = 'Não foi possível abrir a sua conta';
 
@@ -74,12 +75,11 @@ void main() {
       expect(fakes.profile.calls, 2);
     });
 
-    testWidgets('deve encerrar a sessão no "Sair"', (tester) async {
+    testWidgets('deve encerrar a sessão no "Sair", depois da confirmação (RM10)', (tester) async {
       fakes.profile.error = const NetworkException();
       await pumpView(tester);
 
-      await tester.tap(find.text('Sair'));
-      await tester.pump();
+      await tester.signOutAndConfirm();
 
       expect(fakes.session.signOutCalls, 1);
       expect(authState(tester), const AuthUnauthenticated());
@@ -92,8 +92,7 @@ void main() {
       fakes.session.signOutError = const NetworkException();
       await pumpView(tester);
 
-      await tester.tap(find.text('Sair'));
-      await tester.pump();
+      await tester.signOutAndConfirm();
 
       expect(find.widgetWithText(SnackBar, NetworkException.defaultMessage), findsOneWidget);
       expect(authState(tester), isA<AuthLoadFailed>());

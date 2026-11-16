@@ -11,6 +11,7 @@ import 'package:reportaai_cm/features/auth/presentation/widgets/sign_out_button.
 import '../../../../support/auth_fakes.dart';
 import '../../../../support/fake_profile_repository.dart';
 import '../../../../support/pump_app.dart';
+import '../../../../support/sign_out.dart';
 
 void main() {
   group('SignOutButton', () {
@@ -29,14 +30,53 @@ void main() {
       expect(tester.container().read(authControllerProvider), AuthAuthenticated(clientProfile));
     }
 
-    TextButton button(WidgetTester tester) => tester.widget(find.byType(TextButton));
+    TextButton button(WidgetTester tester) =>
+        tester.widget(find.widgetWithText(TextButton, 'Sair').first);
 
-    testWidgets('deve encerrar a sessão pelo AuthController', (tester) async {
+    testWidgets('deve pedir confirmação antes de sair (RM10)', (tester) async {
       await pumpButton(tester);
 
       await tester.tap(find.text('Sair'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('Sair da conta?'), findsOneWidget);
+      expect(find.text('Cancelar'), findsOneWidget);
+      expect(fakes.session.signOutCalls, 0);
+    });
+
+    testWidgets('deve continuar logado no "Cancelar"', (tester) async {
+      await pumpButton(tester);
+      await tester.tap(find.text('Sair'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(fakes.session.signOutCalls, 0);
+      expect(tester.container().read(authControllerProvider), AuthAuthenticated(clientProfile));
+    });
+
+    testWidgets('deve continuar logado ao fechar o diálogo com um toque fora dele', (tester) async {
+      await pumpButton(tester);
+      await tester.tap(find.text('Sair'));
+      await tester.pumpAndSettle();
+
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(fakes.session.signOutCalls, 0);
+    });
+
+    testWidgets('deve encerrar a sessão pelo AuthController depois da confirmação', (tester) async {
+      await pumpButton(tester);
+
+      await tester.signOutAndConfirm();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
       expect(fakes.session.signOutCalls, 1);
       expect(tester.container().read(authControllerProvider), const AuthUnauthenticated());
     });
@@ -45,15 +85,21 @@ void main() {
       final pending = fakes.session.signOutPending = Completer<void>();
       await pumpButton(tester);
 
-      await tester.tap(find.text('Sair'));
-      await tester.pump();
+      await tester.signOutAndConfirm();
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Sair'), warnIfMissed: false);
+      await tester.pump();
 
       expect(button(tester).onPressed, isNull);
+      expect(
+        find.byType(AlertDialog),
+        findsNothing,
+        reason: 'O botão desativado não abre o diálogo.',
+      );
       expect(fakes.session.signOutCalls, 1);
 
       pending.complete();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(button(tester).onPressed, isNotNull);
     });
@@ -62,8 +108,7 @@ void main() {
       fakes.session.signOutError = const NetworkException();
       await pumpButton(tester);
 
-      await tester.tap(find.text('Sair'));
-      await tester.pump();
+      await tester.signOutAndConfirm();
 
       expect(find.widgetWithText(SnackBar, NetworkException.defaultMessage), findsOneWidget);
       expect(tester.container().read(authControllerProvider), AuthAuthenticated(clientProfile));

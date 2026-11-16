@@ -42,5 +42,19 @@ void main() {
     test('deve mostrar o CPF ausente como null no toString', () {
       expect(adminProfile.toString(), contains('cpf: null'));
     });
+
+    group('firstName', () {
+      for (final (name, expected) in [
+        ('Maria da Silva', 'Maria'),
+        ('Maria', 'Maria'),
+        ('  Maria   da  Silva ', 'Maria'),
+        ('Maria\tda Silva', 'Maria'),
+        ('Ana-Clara Souza', 'Ana-Clara'),
+      ]) {
+        test('deve ler "$expected" no nome "$name"', () {
+          expect(clientProfileWith(name: name).firstName, expected);
+        });
+      }
+    });
   });
 }
