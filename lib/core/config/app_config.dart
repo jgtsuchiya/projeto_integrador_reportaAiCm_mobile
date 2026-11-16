@@ -16,7 +16,7 @@ final class AppConfig {
   static const apiUrlKey = 'API_URL';
 
   /// Endereço da API, sem o `/api` e sem a barra do final (ex.: `http://10.0.2.2:3000`). É também
-  /// o `apiDomain` do SDK do SuperTokens, no épico de login.
+  /// o `apiDomain` do SDK do SuperTokens.
   final String apiUrl;
 
   /// Base das rotas da aplicação, que ficam sob o prefixo `/api`.
