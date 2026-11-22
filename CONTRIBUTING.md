@@ -186,6 +186,6 @@ Precisa ser feita **uma única vez**, por alguém com permissão de administrado
 
    Eles bloqueiam push direto, force-push e exclusão da branch, e exigem PR com 1 aprovação, conversas resolvidas e os checks de CI passando.
 
-5. **Labels:** crie `Epic`, `Task` e a label da sprint (ex.: `Sprint 4 - 20/10 - 02/11`), como no backend.
+5. **Labels:** crie `Epic`, `Task` e a label da sprint (ex.: `Sprint 3 - 07/10 - 26/10`), como no backend.
 
 Os checks de CI só aparecem para seleção depois que o workflow rodar pela primeira vez. Se a importação reclamar deles, importe o ruleset, abra um PR qualquer para disparar o CI e depois confirme os checks em _Require status checks to pass_.

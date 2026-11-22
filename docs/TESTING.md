@@ -18,14 +18,14 @@ A pasta `test/` espelha a `lib/`: o teste de `lib/core/config/app_config.dart` f
 test/
 ├── architecture_test.dart       # regra de dependência entre as camadas
 ├── flutter_test_config.dart     # roda antes de todos os testes: prepara o pt-BR do intl
-├── support/                     # pumpApp e fakes compartilhados
+├── support/                     # pumpApp, fakes e helpers compartilhados
 ├── app/                         # router, tema e idioma do app
-├── core/                        # config, network, utils e widgets
-├── features/
-│   └── health/
+├── core/                        # auth (com o SDK de verdade), config, network, utils e widgets
+├── features/                    # auth, health, home e profile
+│   └── <feature>/
 │       ├── data/                # DTO e repositório (com o FakeHttpAdapter)
-│       ├── domain/              # modelos
-│       └── presentation/        # ViewModel e View
+│       ├── domain/              # modelos e regras
+│       └── presentation/        # controller, ViewModel, View e widgets
 ├── flows/                       # fluxos do app inteiro, do abrir o app até a última tela
 └── tool/                        # o script da cobertura mínima
 integration_test/
@@ -35,15 +35,17 @@ integration_test/
 
 ## O que testar em cada camada
 
-| Camada                     | Como testar                                                                                                                      |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `domain`                   | Teste unitário, instanciando direto, sem Flutter e sem fakes. São as regras puras.                                               |
-| `data` (DTO)               | Teste unitário do `fromJson` com o JSON da API, e do JSON fora do formato (`FormatException`).                                   |
-| `data` (repositório)       | Teste unitário com o `FakeHttpAdapter` no lugar da rede: o método e o caminho chamados, o modelo devolvido e as exceções da API. |
-| `presentation` (ViewModel) | Teste unitário com o `ProviderContainer.test` e o fake do repositório: cada estado e cada ação.                                  |
-| `presentation` (View)      | Teste de widget com o `pumpApp` e o fake do repositório: **cada estado da tela** (carregando, erro e sucesso) e a fonte em 200%. |
-| `core/widgets`             | Teste de widget de cada componente, com as verificações de acessibilidade nos temas claro e escuro.                              |
-| `core/network`             | Teste unitário da conversão de cada status com o `FakeHttpAdapter`, e do log, que não pode mostrar nenhum token.                 |
+| Camada                      | Como testar                                                                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain`                    | Teste unitário, instanciando direto, sem Flutter e sem fakes. São as regras puras.                                                        |
+| `data` (DTO)                | Teste unitário do `fromJson` com o JSON da API, e do JSON fora do formato (`FormatException`).                                            |
+| `data` (repositório)        | Teste unitário com o `FakeHttpAdapter` no lugar da rede: o método e o caminho chamados, o modelo devolvido e as exceções da API.          |
+| `presentation` (ViewModel)  | Teste unitário com o `ProviderContainer.test` e o fake do repositório: cada estado e cada ação.                                           |
+| `presentation` (controller) | Teste unitário com o `ProviderContainer.test` e o `AuthFakes`: cada transição de estado, os eventos da sessão e as operações atropeladas. |
+| `presentation` (View)       | Teste de widget com o `pumpApp` e o fake do repositório: **cada estado da tela** (carregando, erro e sucesso) e a fonte em 200%.          |
+| `core/widgets`              | Teste de widget de cada componente, com as verificações de acessibilidade nos temas claro e escuro.                                       |
+| `core/network`              | Teste unitário da conversão de cada status com o `FakeHttpAdapter`, e do log, que não pode mostrar nenhum token.                          |
+| `core/auth`                 | Teste unitário com o SDK do SuperTokens de verdade e o `FakeSessionApi` no lugar da API: a sessão guardada, a renovação e os eventos.     |
 
 ## Convenções
 
@@ -83,24 +85,33 @@ testWidgets('deve mostrar a mensagem clara com a API desligada', (tester) async 
 });
 ```
 
-| Helper                                                    | Para que serve                                                                                           |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `tester.pumpApp(widget, overrides:, config:, themeMode:)` | Uma tela ou um componente, sem as rotas. `themeMode: ThemeMode.dark` testa o tema escuro                 |
-| `tester.pumpRouter(router, overrides:)`                   | O app com as rotas de um `GoRouter` (ex.: o `createRouter()`)                                            |
-| `tester.pumpWholeApp(overrides:, observers:)`             | O app inteiro, como o `main`: as rotas, as telas e o `AuthController` ([fluxos](#fluxos-do-app-inteiro)) |
-| `tester.usePhoneScreen(textScale: 2)`                     | Tela de celular pequeno (360 x 640) com a fonte do sistema em 200%. Volta ao padrão no fim do teste      |
-| `testConfig`                                              | A configuração de teste, com a API em `http://localhost:3000`                                            |
+| Helper                                                    | Para que serve                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `tester.pumpApp(widget, overrides:, config:, themeMode:)` | Uma tela ou um componente, sem as rotas. `themeMode: ThemeMode.dark` testa o tema escuro                                  |
+| `tester.pumpRouter(router, overrides:)`                   | O app com as rotas de um `GoRouter` (ex.: o `createRouter()`)                                                             |
+| `tester.pumpWholeApp(overrides:, observers:)`             | O app inteiro, como o `main`: as rotas, as telas e o `AuthController` ([fluxos](#fluxos-do-app-inteiro))                  |
+| `tester.usePhoneScreen(textScale: 2)`                     | Tela de celular pequeno (360 x 640) com a fonte do sistema em 200%. Volta ao padrão no fim do teste                       |
+| `tester.signOutAndConfirm()`                              | Toca no "Sair" da tela e confirma no diálogo, como o usuário. Termina com a saída começada: o teste decide quanto esperar |
+| `confirmSignOutButton`                                    | O "Sair" de dentro do diálogo de confirmação, que não se confunde com o botão que abre o diálogo                          |
+| `tester.container()`                                      | O `ProviderContainer` do app montado, do próprio Riverpod: `tester.container().read(authControllerProvider)`              |
+| `testConfig`                                              | A configuração de teste, com a API em `http://localhost:3000`                                                             |
 
 ## Fakes e mocks
 
 Um fake usado por um único teste fica no próprio arquivo de teste. Os que servem a vários testes ficam em [`test/support/`](../test/support):
 
-| Fake                   | Substitui             | Como usar                                                                                                                                                                                                              |
-| ---------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FakeHealthRepository` | `HealthRepository`    | Defina o `result`, o `error` (lançado na próxima chamada) ou o `pending` (um `Completer`, para o carregando). Confira o `calls`                                                                                        |
-| `FakeHttpAdapter`      | A rede, dentro do Dio | `reply(status, body:, headers:)`, `replyText(...)`, `failWith(DioExceptionType...)` ou `throwError(...)`. As requisições feitas ficam em `requests`                                                                    |
-| `fakeDio(adapter)`     | O `Dio` do app        | O mesmo `createDio` do app, com o `FakeHttpAdapter` no lugar da rede                                                                                                                                                   |
-| `AuthFakes`            | A sessão e o login    | O `FakeSessionManager`, o `FakeAuthRepository` e o `FakeProfileRepository` ligados entre si, como no app. `AuthFakes(signedIn: true)` abre com a sessão guardada. Os `overrides` vão no `pumpApp` ou no `pumpWholeApp` |
+| Fake                    | Substitui             | Como usar                                                                                                                                                                                                              |
+| ----------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FakeHealthRepository`  | `HealthRepository`    | Defina o `result`, o `error` (lançado na próxima chamada) ou o `pending` (um `Completer`, para o carregando). Confira o `calls`                                                                                        |
+| `FakeHttpAdapter`       | A rede, dentro do Dio | `reply(status, body:, headers:)`, `replyText(...)`, `failWith(DioExceptionType...)` ou `throwError(...)`. As requisições feitas ficam em `requests`                                                                    |
+| `fakeDio(adapter)`      | O `Dio` do app        | O mesmo `createDio` do app, com o `FakeHttpAdapter` no lugar da rede                                                                                                                                                   |
+| `AuthFakes`             | A sessão e o login    | O `FakeSessionManager`, o `FakeAuthRepository` e o `FakeProfileRepository` ligados entre si, como no app. `AuthFakes(signedIn: true)` abre com a sessão guardada. Os `overrides` vão no `pumpApp` ou no `pumpWholeApp` |
+| `FakeSessionManager`    | `SessionManager`      | `hasStoredSession`, `secondFactorPending`, os erros da próxima chamada (`secondFactorError` e `signOutError`) e o `signOutPending`. O `expire()` simula o `UNAUTHORISED` do SDK (RM07)                                 |
+| `FakeAuthRepository`    | `AuthRepository`      | O `signInResult`, o `signInError` ou o `signInPending` do próximo login. Os logins feitos ficam em `signInCalls`. O resto da sessão vai para o `FakeSessionManager` dele                                               |
+| `FakeProfileRepository` | `ProfileRepository`   | O `result` (o `clientProfile`, se o teste não trocar), o `error` ou o `pending`. Confira o `calls`                                                                                                                     |
+| `FakeSessionApi`        | A API do SuperTokens  | Só nos testes de `core/auth/`, com o SDK de verdade: as respostas do signin pelo `Dio` e da renovação e do signout pelo pacote `http`, com o SharedPreferences em memória                                              |
+
+O [`fake_profile_repository.dart`](../test/support/fake_profile_repository.dart) também tem os perfis de exemplo: o `clientProfile` (a Maria do `FRONTEND.md` do backend), o `clientProfileJson` (o mesmo, como a API responde), o `adminProfile` (para a RM01) e o `clientProfileWith(name:, phone:, emailVerifiedAt:)`, o Client com um campo trocado.
 
 Todo contrato de repositório novo ganha um fake escrito à mão, que implementa o contrato (`implements HealthRepository`): ele é mais legível que um mock e quebra a compilação quando o contrato muda. O `mocktail` fica para o que não compensa ter um fake, como um callback ou uma classe de um pacote externo:
 
@@ -123,6 +134,26 @@ verify(onRetry.call).called(1);
 - O ViewModel é testado sem tela, com o `ProviderContainer.test(overrides: [...], retry: noAutomaticRetry)`, que se descarta sozinho no fim do teste.
 - Os providers de tela são `autoDispose`: no teste sem tela, um `container.listen(provider, (_, _) {})` mantém o provider vivo entre as leituras, como a tela aberta. O `listen` já constrói o provider, então configure o fake antes dele.
 - O `retry: noAutomaticRetry` vale também nos testes (o `pumpApp` já usa): sem ele, o Riverpod repetiria a chamada que falhou, e o teste veria o fake ser chamado várias vezes.
+- No teste de widget, leia os providers do app montado pelo `tester.container()`, do Riverpod. Não crie um `ProviderContainer` à parte: ele teria outro `AuthController`, e o estado lido não seria o da tela.
+
+### Tempo: `fakeAsync`
+
+A contagem regressiva do 429 (RM04) usa um `Timer.periodic`. No teste sem tela, o `fakeAsync` (do pacote `fake_async`, a mesma versão que o `flutter_test` usa) controla o relógio, sem esperar de verdade:
+
+```dart
+fakeAsync((async) {
+  unawaited(submit());
+  async.flushMicrotasks();
+
+  expect(state().retrySeconds, 3);
+
+  async.elapse(const Duration(seconds: 3));
+
+  expect(state(), const LoginState());
+});
+```
+
+No `testWidgets`, o relógio já é falso: o `tester.pump(const Duration(seconds: 1))` avança um segundo.
 
 ## Fluxos do app inteiro
 
@@ -163,6 +194,16 @@ semantics.dispose();
 
 Toda tela tem um teste com a fonte em 200%: `tester.usePhoneScreen(textScale: 2)` e, depois de montar, `expect(tester.takeException(), isNull)`, que falha se algum texto estourar o espaço.
 
+Para conferir o que o leitor de tela lê e anuncia, compare a semântica do widget com o `isSemantics`, com o `tester.ensureSemantics()` ligado. O `containsSemantics` está obsoleto no Flutter 3.47:
+
+```dart
+expect(
+  tester.getSemantics(find.descendant(of: passwordField, matching: find.byType(TextField))),
+  isSemantics(label: 'Senha', isTextField: true, isObscured: true),
+);
+expect(tester.getSemantics(find.text(message)), isSemantics(isLiveRegion: true)); // anunciado
+```
+
 ## Cuidados
 
 - **Rede:** nos testes de widget, o Flutter responde 400 a qualquer requisição HTTP de verdade. Use o `FakeHttpAdapter` ou o fake do repositório.
@@ -170,6 +211,7 @@ Toda tela tem um teste com a fonte em 200%: `tester.usePhoneScreen(textScale: 2)
 - **`material_ui`:** o `tester.pageBack()` procura o botão de voltar do `package:flutter/material.dart`, e o app usa o do `material_ui`. Toque no botão direto: `tester.tap(find.byType(BackButton))`.
 - **Rótulos fundidos:** o leitor de tela lê um botão como um rótulo só (ex.: "Carregando" e "Entrar"). Para achar uma parte dele, use `find.bySemanticsLabel(RegExp('Carregando'))`.
 - **Animações:** o `pumpAndSettle` espera as animações acabarem e não termina enquanto houver um `CircularProgressIndicator` na tela. No estado de carregando, use o `pump`.
+- **Puxar para atualizar:** puxe a tela com o `tester.fling(find.byType(SingleChildScrollView), const Offset(0, 300), 1000)`, o mesmo gesto dos testes do `RefreshIndicator` no Flutter, e depois desenhe com um `pump()` e um `pump(const Duration(seconds: 1))`, para a animação do indicador chegar ao `onRefresh`.
 
 ## Cobertura
 

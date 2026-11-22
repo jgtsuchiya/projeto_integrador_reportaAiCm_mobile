@@ -28,13 +28,14 @@ lib/
 │   ├── app.dart                 # MaterialApp.router: tema, idioma e rotas
 │   ├── config_error_app.dart    # o que abre quando a configuração do build é inválida
 │   ├── localization.dart        # pt-BR: o idioma do app e a preparação do intl
-│   ├── router.dart              # go_router: rotas e redirect central
-│   ├── routes.dart              # caminhos das rotas (/inicio, /diagnostico)
+│   ├── router.dart              # go_router: rotas e redirect a partir do estado de login
+│   ├── routes.dart              # caminhos das rotas (/abertura, /login, /inicio, /diagnostico)
 │   └── theme/                   # cores e tema claro e escuro
 ├── core/                        # código transversal (o shared/ do backend)
+│   ├── auth/                    # SessionManager e o SDK do SuperTokens (o único lugar que o importa)
 │   ├── config/                  # AppConfig: a API_URL, validada na abertura
 │   ├── network/                 # Dio, exceções da API, conversão dos erros e log
-│   ├── utils/                   # formatadores (datas)
+│   ├── utils/                   # formatadores (datas, CPF mascarado e telefone)
 │   └── widgets/                 # componentes reutilizados (botão, campo, erro, carregando)
 └── features/
     └── <feature>/
@@ -46,6 +47,7 @@ lib/
         │   ├── repositories/          # implementações dos contratos (ex.: ApiHealthRepository)
         │   └── dtos/                  # conversão JSON da API <-> modelos
         └── presentation/
+            ├── controllers/           # estado do app inteiro, que várias telas usam (ex.: AuthController)
             ├── view_models/           # estado e ações da tela
             ├── views/                 # telas (*_view.dart)
             └── widgets/               # widgets usados só nesta feature
@@ -60,23 +62,27 @@ env/
 └── dev.json                     # ignorado pelo Git (o endereço muda por aparelho)
 ```
 
-As subpastas só são criadas quando houver conteúdo, como no backend. A feature [`health`](../lib/features/health) é o exemplo mínimo de referência, com todas as camadas: `HealthRepository` → `GET /api/health` → tela de diagnóstico. A [`home`](../lib/features/home) só tem a tela inicial provisória, que o épico de login substitui.
+As subpastas só são criadas quando houver conteúdo, como no backend. A feature [`health`](../lib/features/health) é o exemplo mínimo de referência, com todas as camadas: `HealthRepository` → `GET /api/health` → tela de diagnóstico. As features do login são a [`auth`](../lib/features/auth) (login, sessão, abertura e o `AuthController`) e a [`profile`](../lib/features/profile) (o `GET /api/users/me`), explicadas no [AUTH.md](AUTH.md). A [`home`](../lib/features/home) só tem a apresentação: a tela inicial, com o ViewModel do "puxar para atualizar" e o cartão dos dados, lê o perfil do `AuthController`.
 
 ## O paralelo com o backend
 
-| No app                                   | No backend                                       | Papel                                            |
-| ---------------------------------------- | ------------------------------------------------ | ------------------------------------------------ |
-| `features/<feature>/`                    | `modules/<feature>/`                             | Uma funcionalidade autocontida                   |
-| `<feature>_providers.dart`               | `<feature>.module.ts`                            | Liga o contrato à implementação                  |
-| `domain/models/`                         | `domain/entities/` e `domain/value-objects/`     | Dados e regras, sem framework                    |
-| `domain/repositories/`                   | `domain/repositories/` e `application/ports/`    | Contratos que a camada de cima conhece           |
-| `data/repositories/` (`Api*Repository`)  | `infra/` (`TypeOrm*Repository`, adapters)        | Implementação que fala com o mundo de fora       |
-| `data/dtos/`                             | `infra/database/mappers/` e `presentation/dtos/` | Conversão entre o formato de fora e o domínio    |
-| `presentation/view_models/`              | `application/use-cases/`                         | A lógica de cada tela (no backend, de cada rota) |
-| `presentation/views/`                    | `presentation/controllers/`                      | A borda: recebe a ação e devolve o resultado     |
-| `core/`                                  | `shared/`                                        | Código transversal                               |
-| `app/` e `main.dart`                     | `app.module.ts`, `configure-app.ts` e `main.ts`  | Monta a aplicação                                |
-| `test/support/` (`FakeHealthRepository`) | `shared/testing/` (`FakeMailSender`)             | Fakes escritos à mão para os testes              |
+| No app                                                          | No backend                                                                               | Papel                                            |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `features/<feature>/`                                           | `modules/<feature>/`                                                                     | Uma funcionalidade autocontida                   |
+| `<feature>_providers.dart`                                      | `<feature>.module.ts`                                                                    | Liga o contrato à implementação                  |
+| `domain/models/`                                                | `domain/entities/` e `domain/value-objects/`                                             | Dados e regras, sem framework                    |
+| `domain/repositories/`                                          | `domain/repositories/` e `application/ports/`                                            | Contratos que a camada de cima conhece           |
+| `data/repositories/` (`Api*Repository`)                         | `infra/` (`TypeOrm*Repository`, adapters)                                                | Implementação que fala com o mundo de fora       |
+| `data/dtos/`                                                    | `infra/database/mappers/` e `presentation/dtos/`                                         | Conversão entre o formato de fora e o domínio    |
+| `presentation/view_models/`                                     | `application/use-cases/`                                                                 | A lógica de cada tela (no backend, de cada rota) |
+| `presentation/views/`                                           | `presentation/controllers/`                                                              | A borda: recebe a ação e devolve o resultado     |
+| `AuthController` e `redirectFor`                                | `AuthGuard`                                                                              | Decidem quem passa: sem sessão, não entra        |
+| `core/auth/` (`SessionManager`)                                 | `application/ports/` (`IdentityProvider`)                                                | A porta para o SDK do SuperTokens                |
+| `core/`                                                         | `shared/`                                                                                | Código transversal                               |
+| `app/` e `main.dart`                                            | `app.module.ts`, `configure-app.ts` e `main.ts`                                          | Monta a aplicação                                |
+| `test/support/` (`FakeHealthRepository` e `FakeSessionManager`) | `shared/testing/` e `modules/users/testing/` (`FakeMailSender` e `FakeIdentityProvider`) | Fakes escritos à mão para os testes              |
+
+**Regras repetidas do backend.** Quando o app confere antes de enviar uma regra que a API também confere, ela fica no `domain/` da feature, com o mesmo comportamento do value object do backend. Hoje, é o formato do e-mail: o `isValidEmail` e o `normalizeEmail`, de [`auth/domain/models/email.dart`](../lib/features/auth/domain/models/email.dart), seguem o `Email` do backend (RN02). Uma regra diferente da API faria o app recusar o que ela aceita, ou o contrário.
 
 ## Regra de dependência
 
@@ -93,8 +99,11 @@ presentation ──► domain ◄── data
 | `presentation`             | `domain`, `<feature>_providers.dart`, `core`, `material_ui`, Flutter e Riverpod | `data`, Dio                                            |
 | `<feature>_providers.dart` | tudo da própria feature e o `core`                                              |                                                        |
 | `core`                     | Dart, Flutter e pacotes externos                                                | `features`, `app`                                      |
+| Tudo fora de `core/auth/`  |                                                                                 | O SDK do SuperTokens (`package:supertokens_flutter`)   |
 
-O [test/architecture_test.dart](../test/architecture_test.dart) lê os imports de `lib/` e falha quando a regra é quebrada, no papel do `no-restricted-imports` do ESLint no backend. Ele roda com os outros testes, no CI. Cada regra é uma entrada da lista `architectureRules`: uma regra nova (como a do épico de login, em que só o `core/auth/` importa o SDK do SuperTokens) entra nela.
+O [test/architecture_test.dart](../test/architecture_test.dart) lê os imports de `lib/` e falha quando a regra é quebrada, no papel do `no-restricted-imports` do ESLint no backend. Ele roda com os outros testes, no CI. Cada regra é uma entrada da lista `architectureRules`: uma regra nova entra nela, com um teste que mostra o import recusado.
+
+O SDK do SuperTokens fica só em `core/auth/`, atrás do `SessionManager`, como o `supertokens-node` fica só na `infra` do backend. As telas, os repositórios e o `main` usam o contrato, e os testes o trocam pelo `FakeSessionManager` ([AUTH.md](AUTH.md#integração-com-o-supertokens)).
 
 A presentation chega à implementação só pelo `<feature>_providers.dart`, que devolve o contrato. Assim, o ViewModel nunca conhece a `ApiHealthRepository`, e o teste troca a implementação por um fake com um override.
 
@@ -108,13 +117,15 @@ Os pacotes `package:flutter/widgets.dart` e `package:flutter/foundation.dart` co
 
 Os providers fazem o papel do container de injeção do NestJS. O app usa o `flutter_riverpod` sem geração de código.
 
-| Provider                  | Onde                                            | O que fornece                                                      |
-| ------------------------- | ----------------------------------------------- | ------------------------------------------------------------------ |
-| `appConfigProvider`       | `core/config/app_config_provider.dart`          | A configuração validada. Sem valor padrão: o `main` faz o override |
-| `dioProvider`             | `core/network/dio_provider.dart`                | O `Dio` único do app                                               |
-| `routerProvider`          | `app/router.dart`                               | O `GoRouter`                                                       |
-| `<contrato>Provider`      | `features/<feature>/<feature>_providers.dart`   | A implementação do contrato (ex.: `healthRepositoryProvider`)      |
-| `<tela>ViewModelProvider` | `presentation/view_models/`, junto do ViewModel | O estado da tela (ex.: `diagnosticsViewModelProvider`)             |
+| Provider                  | Onde                                            | O que fornece                                                                          |
+| ------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `appConfigProvider`       | `core/config/app_config_provider.dart`          | A configuração validada. Sem valor padrão: o `main` faz o override                     |
+| `sessionManagerProvider`  | `core/auth/session_manager_provider.dart`       | A sessão, com o SDK já inicializado. Sem valor padrão: o `main` faz o override         |
+| `dioProvider`             | `core/network/dio_provider.dart`                | O `Dio` único do app, com a sessão                                                     |
+| `routerProvider`          | `app/router.dart`                               | O `GoRouter`, que ouve o `authControllerProvider`                                      |
+| `authControllerProvider`  | `features/auth/presentation/controllers/`       | O estado de login do app inteiro ([AUTH.md](AUTH.md#estado-de-login-o-authcontroller)) |
+| `<contrato>Provider`      | `features/<feature>/<feature>_providers.dart`   | A implementação do contrato (ex.: `healthRepositoryProvider`)                          |
+| `<tela>ViewModelProvider` | `presentation/view_models/`, junto do ViewModel | O estado da tela (ex.: `diagnosticsViewModelProvider`)                                 |
 
 ```dart
 // features/health/health_providers.dart
@@ -135,6 +146,7 @@ final class DiagnosticsViewModel extends AsyncNotifier<HealthStatus> {
 ```
 
 - **ViewModel:** um `Notifier` ou `AsyncNotifier` por tela, com o provider no mesmo arquivo. Quando a tela só carrega um dado, o `AsyncNotifier` já traz os estados de carregando, erro e sucesso (`AsyncValue`), que a View desenha com o `when`. Os providers de tela são `autoDispose`: o estado some quando a tela fecha.
+- **Controller:** o estado que vale para o app inteiro, e não para uma tela, fica num `Notifier` em `presentation/controllers/`, sem `autoDispose`. Hoje, só o `AuthController`. Os ViewModels chamam as ações dele (o `LoginViewModel` chama o `signIn`) e guardam só o estado da tela (o erro de cada campo, a contagem do 429).
 - **Sem repetição automática:** o Riverpod 3 repete até 10 vezes um provider que falhou com uma exceção. O app desliga isso (`retry: noAutomaticRetry`, no `ProviderScope` do `main`): quem decide repetir é a tela, com o "Tentar de novo".
 - **Nos testes**, o contrato é trocado por override: `healthRepositoryProvider.overrideWithValue(FakeHealthRepository())`. Os detalhes estão no [TESTING.md](TESTING.md).
 
@@ -152,7 +164,7 @@ Todas as chamadas à API passam pelo mesmo `Dio`, fornecido pelo `dioProvider`:
 
 - `baseUrl` `${API_URL}/api`, JSON na ida e na volta, 10 s para conectar e 15 s para a resposta;
 - os caminhos começam com `/`, sem o prefixo: `dio.get('/health')` chama `GET /api/health`;
-- no épico de login, o SDK do SuperTokens registra o interceptor dele aqui, antes do de log.
+- os interceptors da sessão (o do SDK do SuperTokens e o `UnauthorizedResponseInterceptor`) entram antes do de log: o access token vai no `Authorization`, e o vencido é renovado sozinho ([AUTH.md](AUTH.md#interceptors-no-dio)).
 
 ### Erros: `callApi` e as `ApiException`
 
@@ -179,6 +191,7 @@ Future<HealthStatus> check() => callApi(() async {
 | 5xx, outro status, resposta fora do formato ou erro inesperado | `ServerException`              | Sempre a mensagem padrão. O motivo fica no `cause` |
 | Sem conexão ou timeout                                         | `NetworkException`             | `isTimeout`                                        |
 
+- O 401 só chega ao `callApi` quando a sessão não renova mais: antes disso, o interceptor do SDK renova a sessão e repete a chamada. O 401 da senha de confirmação incorreta tem um cuidado à parte ([AUTH.md](AUTH.md#cuidados)).
 - A `message` vem da API quando o corpo está no formato de erro da aplicação (`statusCode`, `error`, `message`, `details`). Sem ele, como sem conexão ou nas respostas do SuperTokens, que vêm em inglês (`unauthorised`, `invalid claim`), vale o texto padrão de cada exceção.
 - A tela mostra o erro com `ApiException.messageOf(error)`, que também cobre um erro que não é da API.
 - Um erro inesperado (ex.: um campo que não veio no JSON) vira `ServerException` e não derruba o app. Em debug, o motivo vai para o console.
@@ -195,48 +208,60 @@ Em debug, o [`ApiLogInterceptor`](../lib/core/network/api_log_interceptor.dart) 
 
 As rotas usam o **go_router**, com os caminhos em [`AppRoutes`](../lib/app/routes.dart):
 
-| Rota           | Tela                             | Quando existe                                           |
-| -------------- | -------------------------------- | ------------------------------------------------------- |
-| `/inicio`      | Tela inicial (provisória)        | Sempre. O épico de login a troca pela tela com os dados |
-| `/diagnostico` | Diagnóstico da conexão com a API | Só em debug (`kDebugMode`)                              |
+| Rota           | Tela                                            | Quando abre                                       |
+| -------------- | ----------------------------------------------- | ------------------------------------------------- |
+| `/abertura`    | Abertura: o carregando e o erro sem rede (RM06) | Enquanto o app confere a sessão. É a rota inicial |
+| `/login`       | Login                                           | Sem sessão                                        |
+| `/inicio`      | Tela inicial, com os dados do usuário           | Com o Client dentro                               |
+| `/diagnostico` | Diagnóstico da conexão com a API                | Só em debug (`kDebugMode`), em qualquer estado    |
 
-- **Redirect central:** a função `_redirect` é o único lugar que escolhe a tela a partir do estado do app. Nesta sprint ela não tem regra. No épico de login, ela leva ao login quem não tem sessão, e nenhuma tela navega sozinha depois do login ou do "Sair".
-- **`refreshListenable`:** o `RouterRefreshNotifier` avisa o go_router para reavaliar o redirect. No épico de login, o `routerProvider` passa a ouvir o estado da sessão e chama o `notify()`.
-- **Rota que não existe** (um deep link antigo, ou o `/diagnostico` no release) leva à tela inicial.
+- **Redirect central:** o `redirectFor` é o único lugar que escolhe a tela, a partir do estado do `AuthController`. Toda rota, menos o diagnóstico, exige a sessão. Nenhuma tela navega sozinha depois do login ou do "Sair": ela muda o estado, e o redirect leva à tela certa ([AUTH.md](AUTH.md#rotas-e-redirect)).
+- **`refreshListenable`:** o `routerProvider` ouve o `authControllerProvider` e chama o `notify()` do `RouterRefreshNotifier`, que faz o go_router reavaliar o redirect.
+- **Rota que não existe** (um deep link antigo, ou o `/diagnostico` no release) leva à tela inicial, ou ao login, para quem não entrou.
 - Para abrir uma tela por cima da atual, com o "voltar", use `context.push(AppRoutes...)`. Para trocar de seção, `context.go(...)`.
 
 ## Tema, idioma e componentes
 
 - **Tema** ([`app/theme/`](../lib/app/theme)): Material 3 com `ColorScheme.fromSeed`, a partir de uma cor provisória (`AppColors.seed`). Os modos claro e escuro seguem o sistema. Quando o protótipo existir, o tema muda só nessa pasta. O ícone e o splash usam a mesma cor ([README](../README.md#ícone-e-splash)).
-- **Idioma:** só pt-BR, com `flutter_localizations` e `intl`. Os textos ficam direto no código, sem arquivos ARB, enquanto houver um idioma só. As datas saem em `dd/MM/yyyy` pelos [formatadores](../lib/core/utils/date_formatters.dart).
+- **Idioma:** só pt-BR, com `flutter_localizations` e `intl`. Os textos ficam direto no código, sem arquivos ARB, enquanto houver um idioma só.
+- **Formatadores** ([`core/utils/`](../lib/core/utils)): a API manda os dados crus, e a máscara é do app.
+
+| Função                          | Exemplo                                                                |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `formatDate` e `formatDateTime` | `20/05/1990` e `20/05/1990 14:30`                                      |
+| `formatMonthYear`               | `outubro de 2026`                                                      |
+| `maskCpf`                       | `52998224725` → `***.982.247-**`. Fora do formato, mascara tudo (RM09) |
+| `formatPhone`                   | `44999998888` → `(44) 99999-8888`, e o fixo, `(44) 3333-4444`          |
+
 - **Componentes** ([`core/widgets/`](../lib/core/widgets)):
 
-| Componente         | Uso                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `PrimaryButton`    | Ação principal da tela. Com `isLoading`, mostra o indicador e ignora o toque, para não enviar duas vezes |
-| `AppTextField`     | Campo com rótulo e mensagem de erro, da validação local (`validator`) ou da API (`errorText`)            |
-| `ErrorView`        | Tela de erro, com o "Tentar de novo" quando há `onRetry`. O leitor de tela anuncia o erro                |
-| `LoadingIndicator` | Indicador de carregamento, com uma mensagem opcional                                                     |
-| `ScrollableCenter` | Centraliza o conteúdo e rola quando ele não cabe (ex.: fonte em 200%)                                    |
+| Componente         | Uso                                                                                                                                                                                                                                                         |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PrimaryButton`    | Ação principal da tela. Com `isLoading`, mostra o indicador e ignora o toque, para não enviar duas vezes                                                                                                                                                    |
+| `AppTextField`     | Campo com rótulo e mensagem de erro, da validação local (`validator`) ou da API (`errorText`). Com `obscureText`, o teclado não corrige, não sugere e não aprende o texto. No campo de senha que pode ficar visível, `enableSuggestions: false` mantém isso |
+| `ErrorView`        | Tela de erro, com o "Tentar de novo" quando há `onRetry` e uma ação a mais no `secondaryAction` (ex.: o "Sair" da abertura). O leitor de tela anuncia o erro                                                                                                |
+| `LoadingIndicator` | Indicador de carregamento, com uma mensagem opcional                                                                                                                                                                                                        |
+| `ScrollableCenter` | Centraliza o conteúdo e rola quando ele não cabe (ex.: fonte em 200%)                                                                                                                                                                                       |
 
 - **Acessibilidade:** os botões têm pelo menos 48 dp de altura, e toda tela rola, para aguentar a fonte do sistema em 200% sem cortar texto. Os testes dos componentes passam pelas verificações do Flutter (`androidTapTargetGuideline`, `labeledTapTargetGuideline` e `textContrastGuideline`), nos dois temas.
 
 ## Convenções de nomenclatura
 
-| Item                          | Padrão                                                    | Exemplo                                                 |
-| ----------------------------- | --------------------------------------------------------- | ------------------------------------------------------- |
-| Arquivos e pastas             | `snake_case`                                              | `diagnostics_view_model.dart`                           |
-| Features                      | em inglês, no singular ou plural do domínio               | `auth`, `profile`, `reports`                            |
-| Tela                          | `*_view.dart` → `*View`                                   | `diagnostics_view.dart` → `DiagnosticsView`             |
-| ViewModel                     | `*_view_model.dart` → `*ViewModel` e `*ViewModelProvider` | `DiagnosticsViewModel` e `diagnosticsViewModelProvider` |
-| Contrato de repositório       | `*_repository.dart` → `*Repository`                       | `health_repository.dart` → `HealthRepository`           |
-| Implementação que chama a API | `api_*_repository.dart` → `Api*Repository`                | `api_health_repository.dart` → `ApiHealthRepository`    |
-| DTO                           | `*_dto.dart` → `*Dto`, com `fromJson` e `toModel`         | `HealthStatusDto`                                       |
-| Ligação da feature            | `<feature>_providers.dart`                                | `health_providers.dart`                                 |
-| Providers                     | `camelCase` com o sufixo `Provider`                       | `healthRepositoryProvider`                              |
-| Rotas                         | em português, `kebab-case`, em `AppRoutes`                | `/inicio`, `/diagnostico`                               |
-| Testes                        | espelham `lib/`, com `_test.dart`                         | `test/core/config/app_config_test.dart`                 |
-| Fakes                         | `Fake*`, em `test/support/`                               | `FakeHealthRepository`                                  |
+| Item                          | Padrão                                                      | Exemplo                                                 |
+| ----------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
+| Arquivos e pastas             | `snake_case`                                                | `diagnostics_view_model.dart`                           |
+| Features                      | em inglês, no singular ou plural do domínio                 | `auth`, `profile`, `reports`                            |
+| Tela                          | `*_view.dart` → `*View`                                     | `diagnostics_view.dart` → `DiagnosticsView`             |
+| ViewModel                     | `*_view_model.dart` → `*ViewModel` e `*ViewModelProvider`   | `DiagnosticsViewModel` e `diagnosticsViewModelProvider` |
+| Controller                    | `*_controller.dart` → `*Controller` e `*ControllerProvider` | `AuthController` e `authControllerProvider`             |
+| Contrato de repositório       | `*_repository.dart` → `*Repository`                         | `health_repository.dart` → `HealthRepository`           |
+| Implementação que chama a API | `api_*_repository.dart` → `Api*Repository`                  | `api_health_repository.dart` → `ApiHealthRepository`    |
+| DTO                           | `*_dto.dart` → `*Dto`, com `fromJson` e `toModel`           | `HealthStatusDto`                                       |
+| Ligação da feature            | `<feature>_providers.dart`                                  | `health_providers.dart`                                 |
+| Providers                     | `camelCase` com o sufixo `Provider`                         | `healthRepositoryProvider`                              |
+| Rotas                         | em português, `kebab-case`, em `AppRoutes`                  | `/abertura`, `/inicio`, `/diagnostico`                  |
+| Testes                        | espelham `lib/`, com `_test.dart`                           | `test/core/config/app_config_test.dart`                 |
+| Fakes                         | `Fake*`, em `test/support/`                                 | `FakeHealthRepository`, `FakeSessionManager`            |
 
 Outras convenções, a maioria conferida pelo analyzer (`very_good_analysis`):
 
@@ -254,5 +279,5 @@ Usando como exemplo uma feature `reports` que lista os reportes do usuário:
 2. **Dados:** crie o DTO em `data/dtos/report_dto.dart` (`fromJson` que lança `FormatException` e `toModel`) e a implementação em `data/repositories/api_report_repository.dart`, com cada chamada dentro do `callApi`.
 3. **Ligação:** crie `features/reports/reports_providers.dart`, com o `reportRepositoryProvider` que devolve o contrato.
 4. **Tela:** crie o ViewModel em `presentation/view_models/` e a View em `presentation/views/reports_view.dart`. A View usa os componentes de `core/widgets/` para o carregando e o erro.
-5. **Rota:** adicione o caminho em `AppRoutes` e a `GoRoute` em `app/router.dart`.
+5. **Rota:** adicione o caminho em `AppRoutes` e a `GoRoute` em `app/router.dart`. A rota já nasce exigindo a sessão: o que muda numa tela autenticada (o perfil, os erros da sessão, o "Sair" e os testes com o `AuthFakes`) está em [como criar uma tela autenticada nova](AUTH.md#como-criar-uma-tela-autenticada-nova).
 6. **Testes:** o fake do contrato em `test/support/` (se outros testes também usarem) e os testes espelhando `lib/`: o DTO, o repositório (com o `FakeHttpAdapter`), o ViewModel e a View em cada estado ([TESTING.md](TESTING.md)).
