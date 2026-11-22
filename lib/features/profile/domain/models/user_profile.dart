@@ -2,6 +2,8 @@ import 'package:meta/meta.dart';
 import 'package:reportaai_cm/features/profile/domain/models/role.dart';
 import 'package:reportaai_cm/features/profile/domain/models/user_status.dart';
 
+final _spaces = RegExp(r'\s+');
+
 /// O perfil do usuário logado, do `GET /api/users/me`. É por ele que o app sabe quem entrou e com
 /// qual papel (RM01). As datas com hora estão em UTC, como a API as devolve: para mostrar no
 /// horário do aparelho, use o `toLocal()`.
@@ -52,6 +54,10 @@ final class UserProfile {
   /// Só do Client. Uma data sem hora, à meia-noite no fuso do aparelho: o `formatDate` mostra o
   /// mesmo dia em qualquer fuso, e o `toLocal()` não a muda.
   final DateTime? birthDate;
+
+  /// O primeiro nome, para a saudação ("Olá, Maria"): a primeira palavra do [name], sem os
+  /// espaços que sobram.
+  String get firstName => name.trim().split(_spaces).first;
 
   @override
   bool operator ==(Object other) =>
