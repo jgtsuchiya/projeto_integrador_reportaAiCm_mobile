@@ -92,7 +92,7 @@ fvm flutter run --dart-define-from-file=env/dev.json
 
 No VS Code, o passo 5 é a configuração **ReportaAi Cm (dev)** do _Run and Debug_ (F5), que já passa o `--dart-define-from-file`.
 
-O app abre na tela inicial. Para conferir a conexão com a API, toque em **Diagnóstico da API**: a tela mostra o endereço usado e **ok** quando a API responde. O atalho e a tela de diagnóstico só existem em debug.
+Sem uma sessão guardada, o app abre no login. Para conferir a conexão com a API, toque em **Diagnóstico da API**, embaixo do "Entrar": a tela mostra o endereço usado e **ok** quando a API responde. O atalho e a tela de diagnóstico só existem em debug.
 
 ## Conectando à API local
 
@@ -161,8 +161,9 @@ Rode todos pelo FVM, para usar a versão do Flutter do projeto.
 
 | Comando                                                                  | O que faz                                                             |
 | ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| `fvm flutter test`                                                       | Testes unitários, de widget e de arquitetura                          |
+| `fvm flutter test`                                                       | Testes unitários, de widget, de fluxo e de arquitetura                |
 | `fvm flutter test --coverage`                                            | O mesmo, com o relatório de cobertura em `coverage/lcov.info`         |
+| `fvm dart run tool/check_coverage.dart`                                  | Confere a cobertura mínima no relatório, como o CI                    |
 | `fvm flutter test integration_test --dart-define-from-file=env/dev.json` | Testes de integração, com a API local no ar e um emulador ou aparelho |
 
 **Build**
@@ -195,8 +196,9 @@ fvm dart run flutter_native_splash:create
 │           ├── domain/        # modelos e contratos dos repositórios
 │           ├── data/          # implementações que chamam a API e DTOs
 │           └── presentation/  # telas e ViewModels
-├── test/                      # testes unitários, de widget e de arquitetura (espelha lib/)
+├── test/                      # testes unitários, de widget, de fluxo e de arquitetura (espelha lib/)
 ├── integration_test/          # testes ponta a ponta, contra a API local
+├── tool/                      # scripts do desenvolvimento e do CI (cobertura mínima)
 ├── env/                       # configuração por ambiente (dev.example.json)
 ├── assets/branding/           # imagens do ícone e do splash
 ├── android/ e ios/            # projetos nativos

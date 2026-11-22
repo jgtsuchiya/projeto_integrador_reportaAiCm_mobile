@@ -59,6 +59,28 @@ void main() {
       expect(field.obscureText, isTrue);
       expect(field.autocorrect, isFalse);
       expect(field.enableSuggestions, isFalse);
+      expect(field.enableIMEPersonalizedLearning, isFalse);
+    });
+
+    testWidgets('deve desligar as sugestões e o aprendizado do teclado no campo visível', (
+      tester,
+    ) async {
+      await pumpField(tester, const AppTextField(label: 'Senha', enableSuggestions: false));
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+
+      expect(field.obscureText, isFalse);
+      expect(field.enableSuggestions, isFalse);
+      expect(field.enableIMEPersonalizedLearning, isFalse);
+    });
+
+    testWidgets('deve manter as sugestões e o aprendizado do teclado por padrão', (tester) async {
+      await pumpField(tester, const AppTextField(label: 'Nome'));
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+
+      expect(field.enableSuggestions, isTrue);
+      expect(field.enableIMEPersonalizedLearning, isTrue);
     });
 
     testWidgets('deve quebrar a mensagem de erro longa com a fonte em 200%', (tester) async {

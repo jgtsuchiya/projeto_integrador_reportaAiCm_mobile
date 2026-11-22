@@ -1,26 +1,21 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:reportaai_cm/app/app.dart';
-import 'package:reportaai_cm/core/config/app_config_provider.dart';
-import 'package:reportaai_cm/features/home/presentation/views/home_view.dart';
+import 'package:reportaai_cm/features/auth/presentation/views/login_view.dart';
 
+import '../support/auth_fakes.dart';
 import '../support/pump_app.dart';
 
 void main() {
   group('App', () {
+    /// Abre o app sem sessão: ele para no login.
     Future<BuildContext> pumpWholeApp(WidgetTester tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [appConfigProvider.overrideWithValue(testConfig)],
-          retry: noAutomaticRetry,
-          child: const App(),
-        ),
-      );
-      return tester.element(find.byType(HomeView));
+      await tester.pumpWholeApp(overrides: AuthFakes().overrides);
+      await tester.pumpAndSettle();
+      return tester.element(find.byType(LoginView));
     }
 
-    testWidgets('deve abrir na tela inicial, em pt-BR', (tester) async {
+    testWidgets('deve abrir em pt-BR', (tester) async {
       final context = await pumpWholeApp(tester);
 
       expect(Localizations.localeOf(context), const Locale('pt', 'BR'));
@@ -45,7 +40,7 @@ void main() {
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
       await tester.pumpAndSettle();
 
-      expect(Theme.of(tester.element(find.byType(HomeView))).brightness, Brightness.dark);
+      expect(Theme.of(tester.element(find.byType(LoginView))).brightness, Brightness.dark);
     });
   });
 

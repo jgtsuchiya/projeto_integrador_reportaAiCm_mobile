@@ -12,6 +12,7 @@ analyzer:
     # Arquivos gerados (build_runner), para quando existirem.
     - '**/*.g.dart'
     - '**/*.freezed.dart'
+    - linux/**
 
 linter:
   rules:

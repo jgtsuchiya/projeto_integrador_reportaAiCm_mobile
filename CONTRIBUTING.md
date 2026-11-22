@@ -157,7 +157,7 @@ Regras:
 | `git commit`                  | `dart format` nos `.dart` staged e `flutter analyze --fatal-infos` no projeto (quando há `.dart` ou `.yaml`) | `.husky/pre-commit`        |
 | `git commit`                  | Validação da mensagem (commitlint)                                                                           | `.husky/commit-msg`        |
 | `git push`                    | Validação do nome da branch e bloqueio de push direto em `main` e `develop`                                  | `.husky/pre-push`          |
-| PR e push em `develop`/`main` | Formatação, analyzer, testes com cobertura e build do APK de debug                                           | `.github/workflows/ci.yml` |
+| PR e push em `develop`/`main` | Formatação, analyzer, testes, cobertura mínima de 80% nas camadas com regras e build do APK de debug         | `.github/workflows/ci.yml` |
 
 O pre-commit roda pelo [lint-staged](.lintstagedrc.mjs), só com o que está staged: um arquivo `.dart` mal formatado sai formatado no commit, e um aviso do analyzer recusa o commit. Os comandos passam pelo FVM, então o `fvm` precisa estar no `PATH` do terminal ou do editor que faz o commit. Os testes não rodam no pre-commit: eles ficam com o CI.
 
