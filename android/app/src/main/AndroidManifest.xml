@@ -2,10 +2,13 @@
     <!-- O Flutter só declara a INTERNET nos manifests de debug e de profile. Sem ela aqui,
          o build de release não acessa a rede. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Sem backup automático: o SDK do SuperTokens guarda os tokens da sessão no
+         SharedPreferences, que iria para o backup na nuvem. -->
     <application
         android:label="ReportaAi Cm"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"

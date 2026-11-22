@@ -2,7 +2,7 @@
 
 App do cidadão do **ReportaAi Cm**, plataforma para que os moradores de **Campo Mourão (PR)** reportem buracos no asfalto e para que a prefeitura acompanhe e analise esses reportes.
 
-> **Status:** em desenvolvimento (Projeto Integrador). A base do app está pronta: arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI. O login e a tela inicial com os dados do cidadão entram no próximo épico, e os reportes, nas sprints seguintes.
+> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI) e o login do cidadão, com a tela inicial com os dados dele. O cadastro, o "Esqueci minha senha" e os reportes entram nas próximas sprints.
 
 ## Sumário
 
@@ -11,6 +11,7 @@ App do cidadão do **ReportaAi Cm**, plataforma para que os moradores de **Campo
 - [Pré-requisitos](#pré-requisitos)
 - [Instalação e execução local](#instalação-e-execução-local)
 - [Conectando à API local](#conectando-à-api-local)
+- [Entrando no app](#entrando-no-app)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
 - [Comandos disponíveis](#comandos-disponíveis)
 - [Estrutura de pastas](#estrutura-de-pastas)
@@ -49,6 +50,7 @@ flowchart LR
 | Estado e injeção    | Riverpod 3.4 (`flutter_riverpod`), sem geração de código |
 | Navegação           | go_router 18                                             |
 | HTTP                | Dio 5.11                                                 |
+| Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)   |
 | Idioma              | pt-BR, com `flutter_localizations` e `intl`              |
 | Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)    |
 | Testes              | `flutter_test`, `mocktail` e `integration_test`          |
@@ -92,7 +94,7 @@ fvm flutter run --dart-define-from-file=env/dev.json
 
 No VS Code, o passo 5 é a configuração **ReportaAi Cm (dev)** do _Run and Debug_ (F5), que já passa o `--dart-define-from-file`.
 
-O app abre na tela inicial. Para conferir a conexão com a API, toque em **Diagnóstico da API**: a tela mostra o endereço usado e **ok** quando a API responde. O atalho e a tela de diagnóstico só existem em debug.
+Sem uma sessão guardada, o app abre no login. Para conferir a conexão com a API, toque em **Diagnóstico da API**, embaixo do "Entrar": a tela mostra o endereço usado e **ok** quando a API responde. O atalho e a tela de diagnóstico só existem em debug. Para entrar, crie um Client de teste ([Entrando no app](#entrando-no-app)).
 
 ## Conectando à API local
 
@@ -125,13 +127,40 @@ Depois de trocar a `API_URL`, pare o app e rode de novo: o hot reload não relê
 | O commit é recusado pelo analyzer                                 | Há um aviso no código                                                     | Rode `fvm flutter analyze --fatal-infos` e corrija                                   |
 | `flutter` usa outra versão, ou o VS Code não acha o SDK           | O comando rodou sem o FVM                                                 | Use sempre `fvm flutter ...`. O VS Code lê o SDK do FVM pelo `.vscode/settings.json` |
 
+## Entrando no app
+
+O app é do cidadão: só entra um **Client** (RM01). O SuperAdm do seed do backend é recusado, com o aviso "Este aplicativo é para cidadãos". Enquanto o cadastro pelo app não existe, crie o Client pela API:
+
+1. Com a API no ar, abra o [`docs/api.http`](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend/blob/develop/docs/api.http) do backend no VS Code, com a extensão REST Client, e envie a requisição **"Cadastra o Client"**, da seção 4. Ela cria a Maria da Silva, com o e-mail `maria.silva@reportaai.local` e a senha `SenhaForte123`. Sem o VS Code, o mesmo cadastro pelo terminal:
+
+   ```bash
+   curl -X POST http://localhost:3000/api/clients \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"Maria da Silva","email":"maria.silva@reportaai.local","password":"SenhaForte123","cpf":"529.982.247-25","phone":"(44) 99999-8888","birthDate":"1990-05-20"}'
+   ```
+
+   A resposta 201 traz o perfil criado. Um 409 quer dizer que o e-mail ou o CPF já tem conta: entre com a mesma senha.
+
+2. No app, entre com o e-mail e a senha. A tela inicial mostra os dados do `GET /api/users/me`, com o selo "E-mail não confirmado". Para tirá-lo, confirme o e-mail pela seção 5 do `api.http` (o link está no Mailpit, em http://localhost:8025) e puxe a tela inicial para baixo, para atualizar.
+3. O app guarda a sessão: na próxima abertura, ele vai direto à tela inicial. Para voltar ao login, use o **Sair**.
+
+| Sintoma                                                                | Causa                                                                                                      | Solução                                                                           |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| O login mostra "Este aplicativo é para cidadãos..."                    | A conta é do SuperAdm ou de um ADM                                                                         | Entre com um Client (passo 1)                                                     |
+| O login mostra "Muitas tentativas. Tente novamente em alguns minutos." | 5 senhas erradas para o mesmo e-mail em 15 minutos (RN17)                                                  | Espere uma das falhas sair da janela, ou redefina a senha (seção 6 do `api.http`) |
+| O login mostra "Muitas tentativas. Tente de novo em N s."              | Mais de 20 logins por minuto do mesmo IP (RN18)                                                            | Espere a contagem: o "Entrar" volta sozinho                                       |
+| A abertura mostra "Não foi possível abrir a sua conta"                 | Há uma sessão guardada, e a API não respondeu                                                              | Suba a API e toque em "Tentar de novo"                                            |
+| O app volta ao login com "Sua sessão expirou. Entre de novo."          | A sessão acabou na API: 7 dias sem abrir o app, o Client inativado ou a sessão encerrada em outro aparelho | Entre de novo                                                                     |
+
+Como o login, a sessão e o redirect funcionam por dentro está no [docs/AUTH.md](docs/AUTH.md).
+
 ## Variáveis de ambiente
 
 O app lê a configuração no build, pelo `--dart-define-from-file=env/<ambiente>.json`, e a valida na abertura: com um valor ausente ou inválido, ele abre a tela "Configuração incompleta", com o que corrigir. O modelo está em [env/dev.example.json](env/dev.example.json), e o `env/dev.json` fica fora do Git, porque o endereço muda por aparelho.
 
-| Variável  | Obrigatória | Exemplo                | Descrição                                                                                                             |
-| --------- | ----------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `API_URL` | sim         | `http://10.0.2.2:3000` | Endereço da API, sem o `/api` e sem a barra do final. É também o `apiDomain` do SDK do SuperTokens, no épico de login |
+| Variável  | Obrigatória | Exemplo                | Descrição                                                                                          |
+| --------- | ----------- | ---------------------- | -------------------------------------------------------------------------------------------------- |
+| `API_URL` | sim         | `http://10.0.2.2:3000` | Endereço da API, sem o `/api` e sem a barra do final. É também o `apiDomain` do SDK do SuperTokens |
 
 Por enquanto, só existe o ambiente de dev. O HTTP sem TLS só é aceito no build de debug: o de release do Android aceita só HTTPS.
 
@@ -161,8 +190,9 @@ Rode todos pelo FVM, para usar a versão do Flutter do projeto.
 
 | Comando                                                                  | O que faz                                                             |
 | ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| `fvm flutter test`                                                       | Testes unitários, de widget e de arquitetura                          |
+| `fvm flutter test`                                                       | Testes unitários, de widget, de fluxo e de arquitetura                |
 | `fvm flutter test --coverage`                                            | O mesmo, com o relatório de cobertura em `coverage/lcov.info`         |
+| `fvm dart run tool/check_coverage.dart`                                  | Confere a cobertura mínima no relatório, como o CI                    |
 | `fvm flutter test integration_test --dart-define-from-file=env/dev.json` | Testes de integração, com a API local no ar e um emulador ou aparelho |
 
 **Build**
@@ -189,14 +219,15 @@ fvm dart run flutter_native_splash:create
 ├── lib/
 │   ├── main.dart              # lê o ambiente e roda o app
 │   ├── app/                   # MaterialApp, rotas, tema e idioma
-│   ├── core/                  # código compartilhado: config, rede, utils e componentes
+│   ├── core/                  # código compartilhado: sessão, config, rede, utils e componentes
 │   └── features/              # uma pasta por funcionalidade
 │       └── <feature>/
 │           ├── domain/        # modelos e contratos dos repositórios
 │           ├── data/          # implementações que chamam a API e DTOs
 │           └── presentation/  # telas e ViewModels
-├── test/                      # testes unitários, de widget e de arquitetura (espelha lib/)
+├── test/                      # testes unitários, de widget, de fluxo e de arquitetura (espelha lib/)
 ├── integration_test/          # testes ponta a ponta, contra a API local
+├── tool/                      # scripts do desenvolvimento e do CI (cobertura mínima)
 ├── env/                       # configuração por ambiente (dev.example.json)
 ├── assets/branding/           # imagens do ícone e do splash
 ├── android/ e ios/            # projetos nativos
@@ -208,14 +239,15 @@ Cada funcionalidade é uma pasta independente, dividida em camadas. A regra de d
 
 ## Documentação
 
-| Documento                                                                                        | Conteúdo                                                                                                      |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                                     | Camadas, regra de dependência, Riverpod, rede e erros da API, navegação, tema, nomes e como criar uma feature |
-| [docs/TESTING.md](docs/TESTING.md)                                                               | Tipos de teste, o que testar em cada camada, `pumpApp`, fakes, acessibilidade, cobertura e comandos           |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                                                               | Git Flow, padrão de commits, Pull Requests e releases                                                         |
-| [docs/sprints/sprint-4-configuracao.md](docs/sprints/sprint-4-configuracao.md)                   | Plano da sprint 4: configuração e arquitetura do app                                                          |
-| [docs/sprints/sprint-4-login.md](docs/sprints/sprint-4-login.md)                                 | Plano da sprint 4: login e tela inicial (RM01 a RM10)                                                         |
-| [README do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend#readme) | A API: instalação, rotas, autenticação e regras de negócio                                                    |
+| Documento                                                                                        | Conteúdo                                                                                                                      |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                                     | Camadas, regra de dependência, Riverpod, rede e erros da API, navegação, tema, nomes e como criar uma feature                 |
+| [docs/AUTH.md](docs/AUTH.md)                                                                     | Login e sessão: o SDK do SuperTokens, o `AuthController`, o redirect, as regras RM01 a RM10 e como criar uma tela autenticada |
+| [docs/TESTING.md](docs/TESTING.md)                                                               | Tipos de teste, o que testar em cada camada, `pumpApp`, fakes, fluxos, acessibilidade, cobertura e integração                 |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                                               | Git Flow, padrão de commits, Pull Requests e releases                                                                         |
+| [docs/sprints/sprint-3-configuracao.md](docs/sprints/sprint-3-configuracao.md)                   | Plano da sprint 3: configuração e arquitetura do app                                                                          |
+| [docs/sprints/sprint-3-login.md](docs/sprints/sprint-3-login.md)                                 | Plano da sprint 3: login e tela inicial (RM01 a RM10)                                                                         |
+| [README do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend#readme) | A API: instalação, rotas, autenticação e regras de negócio                                                                    |
 
 ## Contribuindo
 

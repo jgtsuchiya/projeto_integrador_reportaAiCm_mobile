@@ -14,6 +14,7 @@ class AppTextField extends StatelessWidget {
     this.textInputAction,
     this.obscureText = false,
     this.autocorrect = true,
+    this.enableSuggestions = true,
     this.enabled = true,
     this.autofillHints,
     this.validator,
@@ -31,6 +32,11 @@ class AppTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final bool obscureText;
   final bool autocorrect;
+
+  /// As sugestões e o aprendizado do teclado. Desligue no campo de senha que pode ficar visível,
+  /// para o teclado não sugerir nem aprender a senha.
+  final bool enableSuggestions;
+
   final bool enabled;
   final Iterable<String>? autofillHints;
   final FormFieldValidator<String>? validator;
@@ -47,7 +53,8 @@ class AppTextField extends StatelessWidget {
       obscureText: obscureText,
       // Num campo oculto (senha), nem correção nem sugestão do teclado.
       autocorrect: autocorrect && !obscureText,
-      enableSuggestions: !obscureText,
+      enableSuggestions: enableSuggestions && !obscureText,
+      enableIMEPersonalizedLearning: enableSuggestions && !obscureText,
       enabled: enabled,
       autofillHints: autofillHints,
       validator: validator,

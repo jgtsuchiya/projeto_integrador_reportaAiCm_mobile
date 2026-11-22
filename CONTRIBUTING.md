@@ -157,7 +157,7 @@ Regras:
 | `git commit`                  | `dart format` nos `.dart` staged e `flutter analyze --fatal-infos` no projeto (quando há `.dart` ou `.yaml`) | `.husky/pre-commit`        |
 | `git commit`                  | Validação da mensagem (commitlint)                                                                           | `.husky/commit-msg`        |
 | `git push`                    | Validação do nome da branch e bloqueio de push direto em `main` e `develop`                                  | `.husky/pre-push`          |
-| PR e push em `develop`/`main` | Formatação, analyzer, testes com cobertura e build do APK de debug                                           | `.github/workflows/ci.yml` |
+| PR e push em `develop`/`main` | Formatação, analyzer, testes, cobertura mínima de 80% nas camadas com regras e build do APK de debug         | `.github/workflows/ci.yml` |
 
 O pre-commit roda pelo [lint-staged](.lintstagedrc.mjs), só com o que está staged: um arquivo `.dart` mal formatado sai formatado no commit, e um aviso do analyzer recusa o commit. Os comandos passam pelo FVM, então o `fvm` precisa estar no `PATH` do terminal ou do editor que faz o commit. Os testes não rodam no pre-commit: eles ficam com o CI.
 
@@ -186,6 +186,6 @@ Precisa ser feita **uma única vez**, por alguém com permissão de administrado
 
    Eles bloqueiam push direto, force-push e exclusão da branch, e exigem PR com 1 aprovação, conversas resolvidas e os checks de CI passando.
 
-5. **Labels:** crie `Epic`, `Task` e a label da sprint (ex.: `Sprint 4 - 20/10 - 02/11`), como no backend.
+5. **Labels:** crie `Epic`, `Task` e a label da sprint (ex.: `Sprint 3 - 07/10 - 26/10`), como no backend.
 
 Os checks de CI só aparecem para seleção depois que o workflow rodar pela primeira vez. Se a importação reclamar deles, importe o ruleset, abra um PR qualquer para disparar o CI e depois confirme os checks em _Require status checks to pass_.
