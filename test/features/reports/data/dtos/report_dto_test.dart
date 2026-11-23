@@ -9,6 +9,7 @@ import 'package:reportaai_cm/features/reports/domain/models/geo_location.dart';
 import 'package:reportaai_cm/features/reports/domain/models/prepared_photo.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_draft.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_status.dart';
+import 'package:reportaai_cm/features/reports/domain/models/vote_type.dart';
 
 import '../../../../support/fake_report_repository.dart';
 import '../../../../support/sample_images.dart';
@@ -33,6 +34,42 @@ void main() {
 
       expect(report.distanceMeters, 120);
       expect(ReportDto.fromJson(reportJson).toModel().distanceMeters, isNull);
+    });
+
+    test('deve ler o voto do cidadão e o canVote da validação', () {
+      Map<String, Object?> votes(Object? mine) => {
+        ...(reportJson['votes']! as Map<String, Object?>),
+        'mine': mine,
+      };
+
+      final open = ReportDto.fromJson(_json({'isMine': false, 'canVote': true})).toModel();
+      final confirmed = ReportDto.fromJson(_json({'votes': votes('CONFIRM')})).toModel();
+      final denied = ReportDto.fromJson(_json({'votes': votes('DENY')})).toModel();
+
+      expect(open.canVote, isTrue);
+      expect(open.votes.mine, isNull);
+      expect(confirmed.votes.mine, VoteType.confirm);
+      expect(denied.votes.mine, VoteType.deny);
+      expect(confirmed.canVote, isFalse);
+    });
+
+    test('deve ler o reporte sem o voto de uma API só com a abertura dos reportes', () {
+      final votes = {...(reportJson['votes']! as Map<String, Object?>)}..remove('mine');
+
+      final report = ReportDto.fromJson({..._without('canVote'), 'votes': votes}).toModel();
+
+      expect(report.canVote, isFalse);
+      expect(report.votes.mine, isNull);
+    });
+
+    test('deve ler o voto que o app não conhece como sem voto', () {
+      final report = ReportDto.fromJson(
+        _json({
+          'votes': {...(reportJson['votes']! as Map<String, Object?>), 'mine': 'UNSURE'},
+        }),
+      ).toModel();
+
+      expect(report.votes.mine, isNull);
     });
 
     test('deve ler o status desconhecido como o unknown, sem erro', () {
@@ -92,6 +129,14 @@ void main() {
       ('a data fora do formato', _json({'createdAt': 'ontem'}), 'createdAt'),
       ('sem a data de criação', _without('createdAt'), 'createdAt'),
       ('sem o canEdit', _without('canEdit'), 'canEdit'),
+      ('o canVote que não é booleano', _json({'canVote': 'sim'}), 'canVote'),
+      (
+        'o voto que não é texto',
+        _json({
+          'votes': {...(reportJson['votes']! as Map<String, Object?>), 'mine': 1},
+        }),
+        'votes.mine',
+      ),
     ]) {
       test('deve lançar a FormatException com $description, só com o nome do campo', () {
         final input = description == 'a resposta que não é um objeto' ? 'texto' : json;
@@ -205,6 +250,14 @@ void main() {
           'thumbnail': base64Encode(sampleThumbnailJpeg),
         },
       });
+    });
+
+    test('deve montar o corpo do voto com o código da API e a localização (RN38)', () {
+      expect(const VoteRequestDto(VoteType.confirm, location).toJson(), {
+        'vote': 'CONFIRM',
+        'location': {'latitude': -24.045812, 'longitude': -52.378901, 'accuracyMeters': 8.5},
+      });
+      expect(const VoteRequestDto(VoteType.deny, location).toJson()['vote'], 'DENY');
     });
   });
 }

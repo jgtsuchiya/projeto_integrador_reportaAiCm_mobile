@@ -257,13 +257,14 @@ As rotas usam o **go_router**, com os caminhos em [`AppRoutes`](../lib/app/route
 | `/conta/excluir`       | Excluir a conta (RM17)                          | Com o Client dentro, pela "Minha conta"                |
 | `/reportes`            | "Meus reportes"                                 | Com o Client dentro, pela tela inicial                 |
 | `/reportes/novo`       | "Novo reporte" (RM20 a RM24)                    | Com o Client dentro, pela tela inicial ou pela lista   |
+| `/reportes/perto`      | "Reportes perto de você", com o voto (RM28)     | Com o Client dentro, pela tela inicial                 |
 | `/reportes/:id`        | O detalhe do reporte                            | Pela lista, pelo envio ou pelo aviso do repetido       |
 | `/reportes/:id/editar` | Editar a descrição e a foto (RM25)              | Pelo detalhe                                           |
 | `/diagnostico`         | Diagnóstico da conexão com a API                | Só em debug (`kDebugMode`), em qualquer estado         |
 
 - **Redirect central:** o `redirectFor` é o único lugar que escolhe a tela, a partir do estado do `AuthController`. Toda rota, menos o diagnóstico e as públicas (`AppRoutes.public`), exige a sessão. Com o Client dentro, as públicas levam à tela inicial, e a sessão pendente da segunda etapa só abre a `/verificacao`. Nenhuma tela navega sozinha depois do login ou do "Sair": ela muda o estado, e o redirect leva à tela certa ([AUTH.md](AUTH.md#rotas-e-redirect)).
 - **`refreshListenable`:** o `routerProvider` ouve o `authControllerProvider` e, quando o tipo do estado muda (`changesRoute`), chama o `notify()` do `RouterRefreshNotifier`, que faz o go_router reavaliar o redirect. O perfil novo não reavalia: o go_router reconstruiria a pilha a partir da última rota que conhece, e a tela que acabou de fechar com o `pop` voltaria a abrir.
-- **Rotas aninhadas:** as telas da conta ficam embaixo da `/conta` (`routes:` da `GoRoute`), e um deep link para uma delas abre com a `/conta` atrás. As dos reportes ficam embaixo da `/reportes`, com o `novo` antes do `:id`, para não ser lido como um id, e a edição embaixo do detalhe.
+- **Rotas aninhadas:** as telas da conta ficam embaixo da `/conta` (`routes:` da `GoRoute`), e um deep link para uma delas abre com a `/conta` atrás. As dos reportes ficam embaixo da `/reportes`, com o `novo` e o `perto` antes do `:id`, para não serem lidos como um id, e a edição embaixo do detalhe.
 - **Rota que não existe** (um deep link antigo, ou o `/diagnostico` no release) leva à tela inicial, ou ao login, para quem não entrou.
 - Para abrir uma tela por cima da atual, com o "voltar", use `context.push(AppRoutes...)`. Para trocar de seção, `context.go(...)`.
 

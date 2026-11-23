@@ -13,6 +13,7 @@ import 'package:reportaai_cm/features/reports/domain/models/report_draft.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_limits.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_page.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_status.dart';
+import 'package:reportaai_cm/features/reports/domain/models/vote_type.dart';
 import 'package:reportaai_cm/features/reports/domain/repositories/report_repository.dart';
 
 /// [ReportRepository] que chama as rotas de `/api/reports` pelo `Dio` compartilhado, com a sessão
@@ -108,6 +109,17 @@ final class ApiReportRepository implements ReportRepository {
   Future<void> delete(String id) => callApi(() async {
     // A resposta é um 204, sem corpo.
     await _dio.delete<Object?>('/reports/${Uri.encodeComponent(id)}');
+  });
+
+  @override
+  Future<Report> vote(String id, VoteType vote, GeoLocation location) => callApi(() async {
+    // A resposta é um 201 com o reporte atualizado. A localização vai só no corpo: o
+    // `ApiLogInterceptor` a esconde do log (RM29).
+    final response = await _dio.post<Object?>(
+      '/reports/${Uri.encodeComponent(id)}/votes',
+      data: VoteRequestDto(vote, location).toJson(),
+    );
+    return ReportDto.fromJson(response.data).toModel();
   });
 }
 

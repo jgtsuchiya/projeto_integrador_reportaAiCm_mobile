@@ -188,17 +188,16 @@ void main() {
         expect(entry.onTap, isNotNull);
       });
 
-      testWidgets('deve mostrar a entrada "Reportes perto de você" desativada, para depois', (
-        tester,
-      ) async {
+      testWidgets('deve mostrar a entrada "Reportes perto de você", também sem o e-mail '
+          'confirmado (RM28)', (tester) async {
         await pumpView(tester);
 
         final entry = tester.widget<ListTile>(
           find.widgetWithText(ListTile, 'Reportes perto de você'),
         );
-        expect(entry.enabled, isFalse);
-        expect(find.textContaining('Em breve'), findsOneWidget);
-        expect(find.text('Reportes em breve'), findsNothing);
+        expect(entry.enabled, isTrue);
+        expect(entry.onTap, isNotNull);
+        expect(find.textContaining('Em breve'), findsNothing);
       });
     });
 

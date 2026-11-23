@@ -176,8 +176,8 @@ class _RefreshErrorNotice extends StatelessWidget {
   }
 }
 
-/// As entradas dos reportes: "Meus reportes" e "Reportes perto de você", que chega com a validação
-/// dos reportes.
+/// As entradas dos reportes: "Meus reportes" e "Reportes perto de você", a validação dos reportes
+/// dos outros cidadãos (RM28).
 class _ReportsCard extends StatelessWidget {
   const new();
 
@@ -196,11 +196,12 @@ class _ReportsCard extends StatelessWidget {
             onTap: () => unawaited(context.push(AppRoutes.reports)),
           ),
           const Divider(height: 1),
-          const ListTile(
-            enabled: false,
-            leading: Icon(Icons.near_me_outlined),
-            title: Text('Reportes perto de você'),
-            subtitle: Text('Em breve: confirme os buracos que outros cidadãos reportaram'),
+          ListTile(
+            leading: const Icon(Icons.near_me_outlined),
+            title: const Text('Reportes perto de você'),
+            subtitle: const Text('Confirme os buracos que outros cidadãos reportaram'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => unawaited(context.push(AppRoutes.nearbyReports)),
           ),
         ],
       ),

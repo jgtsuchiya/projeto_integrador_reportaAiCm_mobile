@@ -1,10 +1,13 @@
 import 'package:reportaai_cm/features/reports/domain/models/geo_location.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_status.dart';
+import 'package:reportaai_cm/features/reports/domain/models/vote_type.dart';
 
 /// O JSON do reporte (seção 5 do plano dos reportes do backend), o mesmo no `POST`, no `PATCH`, no
-/// detalhe e nos itens das listas. Os campos que o app ainda não usa, como o `votes.mine` e o
-/// `canVote` da validação, ficam de fora.
+/// voto, no detalhe e nos itens das listas.
+///
+/// O `votes.mine` e o `canVote` são da validação (o epic 2 do backend). Sem eles, o reporte é lido
+/// sem o voto: uma API só com a abertura dos reportes continua funcionando, sem o "Está lá".
 final class ReportDto {
   const new(this._report);
 
@@ -37,10 +40,12 @@ final class ReportDto {
           rejections: _readInt(votes, 'votes.rejections'),
           confirmationsRequired: _readInt(votes, 'votes.confirmationsRequired'),
           rejectionsRequired: _readInt(votes, 'votes.rejectionsRequired'),
+          mine: _readVote(votes, 'votes.mine'),
         ),
         isMine: _read(report, 'isMine'),
         canEdit: _read(report, 'canEdit'),
         canDelete: _read(report, 'canDelete'),
+        canVote: _read<bool?>(report, 'canVote') ?? false,
         createdAt: _readDateTime(report, 'createdAt') ?? (throw _invalidField('createdAt')),
         updatedAt: _readDateTime(report, 'updatedAt') ?? (throw _invalidField('updatedAt')),
         statusChangedAt: _readDateTime(report, 'statusChangedAt'),
@@ -77,6 +82,13 @@ int _readInt(Map<String, Object?> json, String path) => switch (json[_key(path)]
   final int value => value,
   final double value when value == value.truncateToDouble() => value.toInt(),
   _ => throw _invalidField(path),
+};
+
+/// O voto do cidadão, ou `null` sem voto. Um código que o app não conhece também vira `null`: o
+/// `canVote` da API continua decidindo se o voto aparece.
+VoteType? _readVote(Map<String, Object?> json, String path) => switch (_read<String?>(json, path)) {
+  null => null,
+  final value => VoteType.fromApiName(value),
 };
 
 /// Uma data com hora, em ISO 8601 (ex.: `2026-11-09T14:30:00.000Z`). Fica em UTC, como veio.
