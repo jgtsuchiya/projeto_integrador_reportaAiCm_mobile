@@ -17,6 +17,10 @@ import 'package:reportaai_cm/features/auth/presentation/views/second_factor_view
 import 'package:reportaai_cm/features/auth/presentation/views/splash_view.dart';
 import 'package:reportaai_cm/features/health/presentation/views/diagnostics_view.dart';
 import 'package:reportaai_cm/features/home/presentation/views/home_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/edit_report_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/my_reports_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/new_report_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/report_detail_view.dart';
 
 /// O router do app, criado uma vez e descartado junto com o `ProviderScope`. Ele ouve o
 /// `authControllerProvider`: quando o tipo do estado de login muda, o redirect escolhe a tela de
@@ -98,6 +102,32 @@ GoRouter createRouter({
             builder: (context, state) => const SecondFactorSettingsView(),
           ),
           GoRoute(path: 'excluir', builder: (context, state) => const DeleteAccountView()),
+        ],
+      ),
+      // As telas dos reportes ficam embaixo da `/reportes`, como as da conta. O `novo` vem antes
+      // do `:id`, para não ser lido como um id.
+      GoRoute(
+        path: AppRoutes.reports,
+        builder: (context, state) => const MyReportsView(),
+        routes: [
+          GoRoute(path: 'novo', builder: (context, state) => const NewReportView()),
+          GoRoute(
+            path: ':id',
+            // A distância vem da busca dos reportes perto, como o aviso do reporte repetido.
+            builder: (context, state) => ReportDetailView(
+              reportId: state.pathParameters['id']!,
+              distanceMeters: switch (state.extra) {
+                final int meters => meters,
+                _ => null,
+              },
+            ),
+            routes: [
+              GoRoute(
+                path: 'editar',
+                builder: (context, state) => EditReportView(reportId: state.pathParameters['id']!),
+              ),
+            ],
+          ),
         ],
       ),
       if (enableDiagnostics)

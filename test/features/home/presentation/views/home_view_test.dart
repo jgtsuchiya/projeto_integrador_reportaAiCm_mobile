@@ -161,15 +161,45 @@ void main() {
       });
     });
 
-    testWidgets('deve avisar que os reportes chegam em breve, sem ação', (tester) async {
-      await pumpView(tester);
+    group('reportes', () {
+      testWidgets('deve mostrar o "Novo reporte" com o e-mail confirmado', (tester) async {
+        fakes.profile.result = verifiedProfile;
+        await pumpView(tester);
 
-      final card = find.ancestor(of: find.text('Reportes em breve'), matching: find.byType(Card));
-      expect(card, findsOneWidget);
-      expect(
-        find.descendant(of: card, matching: find.bySubtype<ButtonStyleButton>()),
-        findsNothing,
-      );
+        expect(find.widgetWithText(FilledButton, 'Novo reporte'), findsOneWidget);
+        expect(find.text(_verifyEmail), findsNothing);
+      });
+
+      testWidgets('deve mostrar o aviso do e-mail no lugar do "Novo reporte" (RM20)', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        expect(find.text(_verifyEmail), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'Novo reporte'), findsNothing);
+      });
+
+      testWidgets('deve mostrar a entrada "Meus reportes" também sem o e-mail confirmado', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        final entry = tester.widget<ListTile>(find.widgetWithText(ListTile, 'Meus reportes'));
+        expect(entry.onTap, isNotNull);
+      });
+
+      testWidgets('deve mostrar a entrada "Reportes perto de você" desativada, para depois', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        final entry = tester.widget<ListTile>(
+          find.widgetWithText(ListTile, 'Reportes perto de você'),
+        );
+        expect(entry.enabled, isFalse);
+        expect(find.textContaining('Em breve'), findsOneWidget);
+        expect(find.text('Reportes em breve'), findsNothing);
+      });
     });
 
     group('puxar para atualizar', () {

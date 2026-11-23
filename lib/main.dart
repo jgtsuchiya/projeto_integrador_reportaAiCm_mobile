@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:reportaai_cm/app/app.dart';
 import 'package:reportaai_cm/app/config_error_app.dart';
@@ -15,7 +16,12 @@ import 'package:reportaai_cm/core/config/app_config.dart';
 import 'package:reportaai_cm/core/config/app_config_provider.dart';
 import 'package:reportaai_cm/core/network/user_agent.dart';
 
-Future<void> main() async {
+Future<void> main() => startApp();
+
+/// Lê o ambiente, inicializa e roda o app. Os testes de integração passam nos [overrides] o que
+/// não dá para usar de verdade fora do aparelho, como a câmera e o GPS (ver o
+/// `integration_test/reports_flow_test.dart`).
+Future<void> startApp({List<Override> overrides = const []}) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeLocalization();
 
@@ -41,6 +47,7 @@ Future<void> main() async {
         appConfigProvider.overrideWithValue(config),
         sessionManagerProvider.overrideWithValue(sessionManager),
         userAgentProvider.overrideWithValue(userAgent),
+        ...overrides,
       ],
       retry: noAutomaticRetry,
       child: const App(),

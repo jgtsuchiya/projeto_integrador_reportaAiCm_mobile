@@ -2,7 +2,7 @@
 
 App do cidadão do **ReportaAi Cm**, plataforma para que os moradores de **Campo Mourão (PR)** reportem buracos no asfalto e para que a prefeitura acompanhe e analise esses reportes.
 
-> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI), o login do cidadão, com a tela inicial com os dados dele, o cadastro pelo app, o "Esqueci minha senha", o aviso para confirmar o e-mail, a verificação em duas etapas no login e a área "Minha conta" (dados, senha, sessões abertas, verificação em duas etapas e exclusão da conta). Os reportes entram nas próximas sprints.
+> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI), o login do cidadão, com a tela inicial com os dados dele, o cadastro pelo app, o "Esqueci minha senha", o aviso para confirmar o e-mail, a verificação em duas etapas no login, a área "Minha conta" (dados, senha, sessões abertas, verificação em duas etapas e exclusão da conta) e os reportes: abrir um reporte com a foto e a localização do aparelho, acompanhar os próprios reportes, editar e excluir. A validação dos reportes pelos outros cidadãos (o voto e os "Reportes perto de você") entra no próximo epic.
 
 ## Sumário
 
@@ -12,6 +12,7 @@ App do cidadão do **ReportaAi Cm**, plataforma para que os moradores de **Campo
 - [Instalação e execução local](#instalação-e-execução-local)
 - [Conectando à API local](#conectando-à-api-local)
 - [Entrando no app](#entrando-no-app)
+- [Abrindo um reporte](#abrindo-um-reporte)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
 - [Comandos disponíveis](#comandos-disponíveis)
 - [Estrutura de pastas](#estrutura-de-pastas)
@@ -27,7 +28,7 @@ Este app é a porta de entrada do **cidadão**. Qualquer morador de Campo Mourã
 - a **localização** do problema é capturada no momento do reporte;
 - o cidadão envia uma **foto** do buraco.
 
-> O que acontece com o reporte depois de aberto (acompanhamento, status e retorno ao cidadão) ainda está em definição.
+Depois de aberto, o reporte fica **em validação**: com 10 confirmações de outros cidadãos, perto do buraco, ele passa a ser considerado verdadeiro, como nos alertas do Waze e do Google Maps. O cidadão acompanha os próprios reportes pelo app, com o status e as confirmações. O atendimento pela prefeitura (em andamento, resolvido) entra com o painel.
 
 Os servidores da prefeitura usam um **painel web** à parte, para visualizar os reportes e analisar os dados num dashboard. Os dois falam com a mesma [API backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend).
 
@@ -52,6 +53,9 @@ flowchart LR
 | HTTP                | Dio 5.11                                                 |
 | Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)   |
 | Versão do app       | `package_info_plus` 10.2.2, para o `User-Agent`          |
+| Câmera              | `image_picker` 1.2.4, só a câmera (sem a galeria)        |
+| Tratamento da foto  | `flutter_image_compress` 2.5.1 (nativo)                  |
+| Localização         | `geolocator` 14.1.2                                      |
 | Idioma              | pt-BR, com `flutter_localizations` e `intl`              |
 | Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)    |
 | Testes              | `flutter_test`, `mocktail` e `integration_test`          |
@@ -170,6 +174,21 @@ curl -X POST http://localhost:3000/api/clients \
 
 Como o login, o cadastro, a segunda etapa, a "Minha conta", a sessão e o redirect funcionam por dentro está no [docs/AUTH.md](docs/AUTH.md).
 
+## Abrindo um reporte
+
+Com o e-mail confirmado (passo 2 de [Entrando no app](#entrando-no-app)), o **Novo reporte** da tela inicial abre a câmera do aparelho. A localização é lida junto com a foto, e o envio só fica liberado com a precisão de até 50 m: num lugar fechado, vá para perto de uma janela ou para fora. Antes de enviar, o app avisa quando já existe um reporte a até 30 m. Os reportes ficam em **Meus reportes**, com o status, as confirmações, a edição e a exclusão.
+
+- **API:** precisa das rotas de `/api/reports` (o epic dos reportes do backend) e das migrations dos reportes na base (`npm run migration:run`).
+- **Aparelho:** a câmera e o GPS são os do celular. Teste num Android físico: no Linux desktop, o "Novo reporte" não abre a câmera, e as outras telas dos reportes funcionam.
+- **Fora de Campo Mourão:** a API recusa a localização. Aumente a `REPORT_AREA_BOUNDS` no `.env` local do backend.
+
+| Permissão   | Android                                           | iOS                                   | Quando o app pede                                     |
+| ----------- | ------------------------------------------------- | ------------------------------------- | ----------------------------------------------------- |
+| Localização | `ACCESS_FINE_LOCATION` e `ACCESS_COARSE_LOCATION` | `NSLocationWhenInUseUsageDescription` | Na primeira foto, depois de explicar o porquê na tela |
+| Câmera      | Nenhuma: o app da câmera do aparelho tira a foto  | `NSCameraUsageDescription`            | Na primeira foto (só no iOS)                          |
+
+A foto vai sem o EXIF (o GPS e o modelo do aparelho) e na orientação certa, com o maior lado em 1600 px. Como a foto, a localização e o envio funcionam por dentro, o passo a passo no aparelho e os problemas comuns estão no [docs/REPORTS.md](docs/REPORTS.md).
+
 ## Variáveis de ambiente
 
 O app lê a configuração no build, pelo `--dart-define-from-file=env/<ambiente>.json`, e a valida na abertura: com um valor ausente ou inválido, ele abre a tela "Configuração incompleta", com o que corrigir. O modelo está em [env/dev.example.json](env/dev.example.json), e o `env/dev.json` fica fora do Git, porque o endereço muda por aparelho.
@@ -259,11 +278,13 @@ Cada funcionalidade é uma pasta independente, dividida em camadas. A regra de d
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                                     | Camadas, regra de dependência, Riverpod, rede e erros da API, navegação, tema, nomes e como criar uma feature                                                                                                                         |
 | [docs/AUTH.md](docs/AUTH.md)                                                                     | Login, sessão e acesso: o SDK do SuperTokens, o `AuthController`, o redirect, o cadastro, o "Esqueci minha senha", a confirmação do e-mail, a segunda etapa, a "Minha conta", as regras RM01 a RM19 e como criar uma tela autenticada |
+| [docs/REPORTS.md](docs/REPORTS.md)                                                               | Reportes: a câmera, o tratamento da foto, a localização e as permissões, a `Idempotency-Key`, o cache das fotos, as regras RM20 a RM27 e como testar no aparelho e sem sair na rua                                                    |
 | [docs/TESTING.md](docs/TESTING.md)                                                               | Tipos de teste, o que testar em cada camada, `pumpApp`, fakes, fluxos, acessibilidade, cobertura e integração                                                                                                                         |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                                                               | Git Flow, padrão de commits, Pull Requests e releases                                                                                                                                                                                 |
 | [docs/sprints/sprint-3-configuracao.md](docs/sprints/sprint-3-configuracao.md)                   | Plano da sprint 3: configuração e arquitetura do app                                                                                                                                                                                  |
 | [docs/sprints/sprint-3-login.md](docs/sprints/sprint-3-login.md)                                 | Plano da sprint 3: login e tela inicial (RM01 a RM10)                                                                                                                                                                                 |
 | [docs/sprints/sprint-4-acesso.md](docs/sprints/sprint-4-acesso.md)                               | Plano da sprint 4: cadastro, recuperação de acesso e "Minha conta" (RM11 a RM19)                                                                                                                                                      |
+| [docs/sprints/sprint-4-reportes.md](docs/sprints/sprint-4-reportes.md)                           | Plano da sprint 4: reportes e validação no app (RM20 a RM30)                                                                                                                                                                          |
 | [README do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend#readme) | A API: instalação, rotas, autenticação e regras de negócio                                                                                                                                                                            |
 
 ## Contribuindo

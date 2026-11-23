@@ -21,11 +21,17 @@ import 'package:reportaai_cm/features/auth/presentation/views/registration_view.
 import 'package:reportaai_cm/features/health/health_providers.dart';
 import 'package:reportaai_cm/features/health/presentation/views/diagnostics_view.dart';
 import 'package:reportaai_cm/features/home/presentation/views/home_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/edit_report_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/my_reports_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/new_report_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/report_detail_view.dart';
 
 import '../support/auth_fakes.dart';
 import '../support/fake_health_repository.dart';
 import '../support/fake_profile_repository.dart';
+import '../support/fake_report_repository.dart';
 import '../support/pump_app.dart';
+import '../support/report_fakes.dart';
 
 void main() {
   group('redirectFor', () {
@@ -83,6 +89,13 @@ void main() {
         AppRoutes.accountSessions,
         AppRoutes.accountSecondFactor,
         AppRoutes.accountDeletion,
+      ]) ...[(authenticated, path, null), (unauthenticated, path, AppRoutes.login)],
+      // As telas dos reportes também.
+      for (final path in [
+        AppRoutes.reports,
+        AppRoutes.newReport,
+        AppRoutes.reportDetail('reporte-1'),
+        AppRoutes.reportEdit('reporte-1'),
       ]) ...[(authenticated, path, null), (unauthenticated, path, AppRoutes.login)],
     ]) {
       test('deve levar de $path para ${expected ?? 'a mesma rota'} com o $state', () {
@@ -297,6 +310,55 @@ void main() {
         expect(find.byType(AccountView), findsOneWidget);
       });
     }
+
+    group('reportes', () {
+      late ReportFakes reports;
+
+      setUp(() {
+        fakes = verifiedAuthFakes();
+        reports = ReportFakes()
+          ..repository.mine = [sampleReportWith(id: 'reporte-1', canEdit: true)];
+      });
+
+      Future<void> openReportsApp(WidgetTester tester) async {
+        await tester.pumpWholeApp(overrides: [...fakes.overrides, ...reports.overrides]);
+        await tester.pumpAndSettle();
+      }
+
+      for (final (path, screen, below) in [
+        (AppRoutes.newReport, NewReportView, MyReportsView),
+        (AppRoutes.reportDetail('reporte-1'), ReportDetailView, MyReportsView),
+        (AppRoutes.reportEdit('reporte-1'), EditReportView, ReportDetailView),
+      ]) {
+        testWidgets('deve abrir a $screen pelo $path com a $below atrás', (tester) async {
+          await openReportsApp(tester);
+
+          router(tester).go(path);
+          await tester.pumpAndSettle();
+
+          expect(find.byType(screen), findsOneWidget);
+
+          // A tela do novo reporte pergunta antes de descartar a foto.
+          await tester.tap(find.byType(BackButton));
+          await tester.pumpAndSettle();
+          if (find.text('Descartar').evaluate().isNotEmpty) {
+            await tester.tap(find.text('Descartar'));
+            await tester.pumpAndSettle();
+          }
+
+          expect(find.byType(below), findsOneWidget);
+        });
+      }
+
+      testWidgets('não deve ler o "novo" como o id de um reporte', (tester) async {
+        await openReportsApp(tester);
+
+        router(tester).go(AppRoutes.newReport);
+        await tester.pumpAndSettle();
+
+        expect(reports.repository.getByIdCalls, isEmpty);
+      });
+    });
 
     testWidgets('deve manter as telas abertas por cima quando o perfil muda', (tester) async {
       fakes.session.hasStoredSession = true;
