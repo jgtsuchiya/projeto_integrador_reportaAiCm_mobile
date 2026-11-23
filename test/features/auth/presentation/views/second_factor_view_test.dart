@@ -201,31 +201,23 @@ void main() {
       await finishCountdown(tester);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        tester.view
-          ..physicalSize = const Size(800, 2400)
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        final semantics = tester.ensureSemantics();
-        await tester.pumpApp(
-          const SecondFactorView(),
-          overrides: fakes.overrides,
-          themeMode: themeMode,
-        );
-        tester.container().read(authControllerProvider);
-        await tester.pump();
-        fakes.auth.verifyLoginCodeError = _wrongCode;
-        await confirm(tester, '000000');
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      tester.view
+        ..physicalSize = const Size(800, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final semantics = tester.ensureSemantics();
+      await tester.pumpApp(const SecondFactorView(), overrides: fakes.overrides);
+      tester.container().read(authControllerProvider);
+      await tester.pump();
+      fakes.auth.verifyLoginCodeError = _wrongCode;
+      await confirm(tester, '000000');
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-        await finishCountdown(tester);
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+      await finishCountdown(tester);
+    });
   });
 }

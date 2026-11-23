@@ -38,4 +38,21 @@ extension PumpUntil on WidgetTester {
       await pump(const Duration(milliseconds: 100));
     }
   }
+
+  /// Desenha a tela até a [condition] valer, por até [timeout], como o botão que fica ativo
+  /// depois de uma resposta da API.
+  Future<void> pumpUntil(
+    bool Function() condition, {
+    String? reason,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+
+    while (!condition()) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('${reason ?? 'A tela não mudou.'}\nEsperado em até ${timeout.inSeconds} s.');
+      }
+      await pump(const Duration(milliseconds: 100));
+    }
+  }
 }

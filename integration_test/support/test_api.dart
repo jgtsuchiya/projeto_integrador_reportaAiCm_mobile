@@ -329,6 +329,55 @@ final class TestApi {
     }
   }
 
+  /// Abre um reporte do [client] pelo `POST /api/reports`, por fora do app, como o reporte de outro
+  /// cidadão que aparece nos "Reportes perto de você". A [photo] vai como a foto e como a
+  /// miniatura: a de exemplo cabe nos limites das duas. Devolve o id do reporte.
+  ///
+  /// O [client] precisa do e-mail confirmado (RN26).
+  Future<String> openReport(
+    TestClient client, {
+    required String description,
+    required double latitude,
+    required double longitude,
+    required List<int> photo,
+  }) async {
+    final content = base64Encode(photo);
+    final response = await _dio.post<Object?>(
+      '/reports',
+      data: {
+        'description': description,
+        'location': {'latitude': latitude, 'longitude': longitude, 'accuracyMeters': 8},
+        'photo': {'content': content, 'thumbnail': content},
+      },
+      options: Options(headers: {'Authorization': 'Bearer ${await _accessToken(client)}'}),
+    );
+    _expectStatus(response, 201, 'A abertura do reporte de teste');
+
+    return switch (response.data) {
+      {'id': final String id} => id,
+      _ => throw StateError('A abertura do reporte de teste não devolveu o id.'),
+    };
+  }
+
+  /// Exclui o reporte [reportId] do [client] pelo `DELETE /api/reports/:id`, para a base de dev não
+  /// acumular os reportes dos testes. O reporte em validação sai mesmo com votos (RN34), e o que
+  /// já não existe (404) é ignorado.
+  Future<void> deleteReport(TestClient client, String reportId) async {
+    final response = await _dio.delete<Object?>(
+      '/reports/${Uri.encodeComponent(reportId)}',
+      options: Options(headers: {'Authorization': 'Bearer ${await _accessToken(client)}'}),
+    );
+    if (response.statusCode == 404) return;
+    _expectStatus(response, 204, 'A exclusão do reporte de teste');
+  }
+
+  /// O access token de uma sessão aberta só para a chamada, como a de outro aparelho.
+  Future<String> _accessToken(TestClient client) async {
+    final session = await signIn(client);
+    if (session == null) throw StateError('O login do Client de teste foi recusado.');
+    return session.accessToken;
+  }
+
   /// Confirma o e-mail pelo `POST /api/email-verifications/confirm`, como a página
   /// `/verificar-email` do painel faz no navegador do celular.
   Future<void> confirmEmail(String token) async {

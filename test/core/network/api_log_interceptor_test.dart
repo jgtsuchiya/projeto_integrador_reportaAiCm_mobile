@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reportaai_cm/core/network/api_log_interceptor.dart';
@@ -196,6 +198,83 @@ void main() {
       await expectLater(dio.get<Object?>('/health'), throwsA(isA<DioException>()));
 
       expect(lines.last, contains('(texto com 24 caracteres)'));
+    });
+
+    test('não deve mostrar a foto, a miniatura nem as coordenadas do reporte (RM27)', () async {
+      final photo = 'A' * (512 * 1024);
+      final thumbnail = 'B' * 2000;
+      adapter.reply(
+        201,
+        body: {
+          'id': 'reporte-1',
+          'location': {'latitude': -24.045812, 'longitude': -52.378901, 'accuracyMeters': 9},
+        },
+      );
+
+      // Como o repositório envia: o JSON já codificado, fora da thread da tela.
+      await dio.post<Object?>(
+        '/reports',
+        data: jsonEncode({
+          'description': 'Perto do semáforo',
+          'location': {'latitude': -24.045812, 'longitude': -52.378901, 'accuracyMeters': 8.5},
+          'photo': {'content': photo, 'thumbnail': thumbnail},
+        }),
+      );
+
+      expect(log(), isNot(contains('AAAA')));
+      expect(log(), isNot(contains('BBBB')));
+      expect(log(), isNot(contains('24.04')));
+      expect(log(), isNot(contains('52.37')));
+      expect(log(), isNot(contains('8.5')));
+      expect(log(), contains('"content":"*** (512 KB)"'));
+      expect(log(), contains('"thumbnail":"*** (2 KB)"'));
+      expect(log(), contains('"latitude":"***"'));
+      expect(log(), contains('"accuracyMeters":"***"'));
+      expect(log(), contains('Perto do semáforo'));
+    });
+
+    test('não deve mostrar a imagem da resposta da foto', () async {
+      adapter.reply(
+        200,
+        body: {'id': 'foto-1', 'mimeType': 'image/jpeg', 'content': '/9j/${'C' * 3000}'},
+      );
+
+      await dio.get<Object?>('/reports/reporte-1/photo', queryParameters: {'size': 'full'});
+
+      expect(log(), isNot(contains('CCCC')));
+      expect(log(), contains('"content":"*** (3 KB)"'));
+      expect(log(), contains('size=full'));
+    });
+
+    test('deve mascarar as coordenadas na query dos reportes perto', () async {
+      adapter.reply(200, body: {'items': <Object?>[]});
+
+      await dio.get<Object?>(
+        '/reports/nearby',
+        queryParameters: {'latitude': -24.045812, 'longitude': -52.378901, 'radiusMeters': 30},
+      );
+
+      expect(log(), isNot(contains('24.04')));
+      expect(log(), isNot(contains('52.37')));
+      expect(lines.first, contains('latitude=***&longitude=***&radiusMeters=30'));
+    });
+
+    test('não deve mostrar a localização de quem vota (RM29)', () async {
+      adapter.reply(201, body: {'id': 'reporte-1'});
+
+      // Como o repositório envia o voto: o mapa, sem codificar antes.
+      await dio.post<Object?>(
+        '/reports/reporte-1/votes',
+        data: {
+          'vote': 'CONFIRM',
+          'location': {'latitude': -24.045812, 'longitude': -52.378901, 'accuracyMeters': 12.5},
+        },
+      );
+
+      expect(log(), isNot(contains('24.04')));
+      expect(log(), isNot(contains('52.37')));
+      expect(log(), isNot(contains('12.5')));
+      expect(log(), contains('"vote":"CONFIRM"'));
     });
   });
 }

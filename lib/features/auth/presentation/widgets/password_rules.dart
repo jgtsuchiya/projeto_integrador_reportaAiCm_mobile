@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:reportaai_cm/app/theme/success_colors.dart';
 import 'package:reportaai_cm/features/auth/domain/models/password.dart';
 
 /// A política de senha (RN08) embaixo do campo, com cada item marcado quando a senha digitada já
@@ -43,7 +44,8 @@ class _PasswordRuleItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = isMet ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
+    // O item cumprido fica no verde: o ícone e o texto dizem o estado, e a cor ajuda.
+    final color = isMet ? SuccessColors.of(context).success : theme.colorScheme.onSurfaceVariant;
 
     return Semantics(
       label: '$label: ${isMet ? 'cumprido' : 'ainda não cumprido'}',

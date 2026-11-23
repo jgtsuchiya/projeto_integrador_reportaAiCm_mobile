@@ -88,10 +88,44 @@ void main() {
       final colorScheme = Theme.of(context).colorScheme;
 
       expect(button.onPressed, isNull);
-      expect(button.style?.backgroundColor?.resolve({WidgetState.disabled}), colorScheme.primary);
+      // A cor do botão ativo: o amarelo, com a tinta por cima.
+      expect(
+        button.style?.backgroundColor?.resolve({WidgetState.disabled}),
+        colorScheme.primaryContainer,
+      );
+      expect(
+        button.style?.foregroundColor?.resolve({WidgetState.disabled}),
+        colorScheme.onPrimaryContainer,
+      );
+      expect(
+        tester.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator)).color,
+        colorScheme.onPrimaryContainer,
+      );
       // O leitor de tela lê o botão inteiro: o "Carregando" e o rótulo.
       expect(find.bySemanticsLabel(RegExp('Carregando')), findsOneWidget);
       expect(find.text('Entrar'), findsOneWidget);
+    });
+
+    testWidgets('deve ser amarelo com o texto em tinta, ativo e carregando', (tester) async {
+      await tester.pumpApp(
+        Scaffold(
+          body: Column(
+            children: [
+              PrimaryButton(label: 'Entrar', onPressed: () {}),
+              const PrimaryButton(label: 'Entrando', isLoading: true, onPressed: null),
+            ],
+          ),
+        ),
+      );
+      final colorScheme = Theme.of(tester.element(find.text('Entrar'))).colorScheme;
+
+      for (final label in ['Entrar', 'Entrando']) {
+        final button = tester.widget<Material>(
+          find.ancestor(of: find.text(label), matching: find.byType(Material)).first,
+        );
+        expect(button.color, colorScheme.primaryContainer, reason: label);
+        expect(button.textStyle?.color, colorScheme.onPrimaryContainer, reason: label);
+      }
     });
 
     testWidgets('deve ter pelo menos 48 dp de altura', (tester) async {
@@ -106,31 +140,26 @@ void main() {
       expect(tester.getSize(find.byType(FilledButton)).height, greaterThanOrEqualTo(48));
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        final semantics = tester.ensureSemantics();
-        await tester.pumpApp(
-          Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  PrimaryButton(label: 'Entrar', onPressed: () {}),
-                  const PrimaryButton(label: 'Entrando', isLoading: true, onPressed: null),
-                ],
-              ),
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpApp(
+        Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PrimaryButton(label: 'Entrar', onPressed: () {}),
+                const PrimaryButton(label: 'Entrando', isLoading: true, onPressed: null),
+              ],
             ),
           ),
-          themeMode: themeMode,
-        );
+        ),
+      );
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

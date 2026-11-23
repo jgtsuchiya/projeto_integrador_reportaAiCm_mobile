@@ -112,6 +112,56 @@ void main() {
       );
     });
 
+    test('deve acusar o pacote do GPS fora do core/location', () {
+      for (final file in [view, repository, 'lib/core/media/photo_capture.dart']) {
+        for (final import in [
+          'package:geolocator/geolocator.dart',
+          'package:geolocator_platform_interface/geolocator_platform_interface.dart',
+        ]) {
+          expect(violationsOf(file, import), hasLength(1), reason: '$file → $import');
+        }
+      }
+    });
+
+    test('deve aceitar o pacote do GPS no core/location', () {
+      expect(
+        violationsOf(
+          'lib/core/location/geolocator_location_service.dart',
+          'package:geolocator/geolocator.dart',
+        ),
+        isEmpty,
+      );
+    });
+
+    test('deve acusar os pacotes da câmera e da imagem fora do core/media', () {
+      for (final file in [view, repository, 'lib/core/location/location_service.dart']) {
+        for (final import in [
+          'package:image_picker/image_picker.dart',
+          'package:image_picker_platform_interface/image_picker_platform_interface.dart',
+          'package:flutter_image_compress/flutter_image_compress.dart',
+        ]) {
+          expect(violationsOf(file, import), hasLength(1), reason: '$file → $import');
+        }
+      }
+    });
+
+    test('deve aceitar os pacotes da câmera e da imagem no core/media', () {
+      expect(
+        violationsOf(
+          'lib/core/media/image_picker_photo_capture.dart',
+          'package:image_picker/image_picker.dart',
+        ),
+        isEmpty,
+      );
+      expect(
+        violationsOf(
+          'lib/core/media/flutter_image_compressor.dart',
+          'package:flutter_image_compress/flutter_image_compress.dart',
+        ),
+        isEmpty,
+      );
+    });
+
     test('deve acusar o Material do Flutter no lugar do material_ui', () {
       expect(violationsOf(view, 'package:flutter/material.dart'), hasLength(1));
       expect(violationsOf(view, 'package:flutter/cupertino.dart'), hasLength(1));
@@ -177,6 +227,23 @@ final architectureRules = [
         'só o core/auth/ importa o SDK do SuperTokens: o resto do app usa o SessionManager',
     appliesTo: (file) => !file.startsWith('lib/core/auth/'),
     isForbidden: (import) => _isPackage(import, ['supertokens_flutter']),
+  ),
+  ArchitectureRule(
+    description:
+        'só o core/location/ importa o pacote do GPS: o resto do app usa o LocationService',
+    appliesTo: (file) => !file.startsWith('lib/core/location/'),
+    // O `geolocator` e os pacotes dele (`geolocator_android`, `geolocator_platform_interface`...).
+    isForbidden: (import) => import.startsWith('package:geolocator'),
+  ),
+  ArchitectureRule(
+    description:
+        'só o core/media/ importa os pacotes da câmera e da imagem: o resto do app usa o '
+        'PhotoCapture e o ImageCompressor',
+    appliesTo: (file) => !file.startsWith('lib/core/media/'),
+    // Os dois pacotes e os deles (`image_picker_android`, `flutter_image_compress_common`...).
+    isForbidden: (import) =>
+        import.startsWith('package:image_picker') ||
+        import.startsWith('package:flutter_image_compress'),
   ),
   ArchitectureRule(
     description: 'o Material vem do material_ui, não do package:flutter/material.dart',

@@ -37,6 +37,23 @@ abstract final class AppRoutes {
   /// Exclusão da conta (RM15 e RM17).
   static const accountDeletion = '/conta/excluir';
 
+  /// "Meus reportes": os reportes do cidadão, com o filtro por status.
+  static const reports = '/reportes';
+
+  /// "Novo reporte": a câmera, a localização e o envio (RM20 a RM24). Declarada antes do detalhe,
+  /// para `novo` não ser lido como um id.
+  static const newReport = '/reportes/novo';
+
+  /// "Reportes perto de você": os reportes em validação a até 500 m, com o voto (RM28 a RM30).
+  /// Também declarada antes do detalhe, para `perto` não ser lido como um id.
+  static const nearbyReports = '/reportes/perto';
+
+  /// O detalhe do reporte [id].
+  static String reportDetail(String id) => '$reports/${Uri.encodeComponent(id)}';
+
+  /// A edição da descrição e da foto do reporte [id] (RM25).
+  static String reportEdit(String id) => '${reportDetail(id)}/editar';
+
   /// Diagnóstico da conexão com a API. Só existe em debug.
   static const diagnostics = '/diagnostico';
 

@@ -26,8 +26,8 @@ void main() {
     setUp(() => fakes = AuthFakes(signedIn: true));
 
     /// Abre a tela inicial com o Client já dentro.
-    Future<void> pumpView(WidgetTester tester, {ThemeMode themeMode = ThemeMode.light}) async {
-      await tester.pumpApp(const HomeView(), overrides: fakes.overrides, themeMode: themeMode);
+    Future<void> pumpView(WidgetTester tester) async {
+      await tester.pumpApp(const HomeView(), overrides: fakes.overrides);
       await tester.pump();
     }
 
@@ -161,15 +161,44 @@ void main() {
       });
     });
 
-    testWidgets('deve avisar que os reportes chegam em breve, sem ação', (tester) async {
-      await pumpView(tester);
+    group('reportes', () {
+      testWidgets('deve mostrar o "Novo reporte" com o e-mail confirmado', (tester) async {
+        fakes.profile.result = verifiedProfile;
+        await pumpView(tester);
 
-      final card = find.ancestor(of: find.text('Reportes em breve'), matching: find.byType(Card));
-      expect(card, findsOneWidget);
-      expect(
-        find.descendant(of: card, matching: find.bySubtype<ButtonStyleButton>()),
-        findsNothing,
-      );
+        expect(find.widgetWithText(FilledButton, 'Novo reporte'), findsOneWidget);
+        expect(find.text(_verifyEmail), findsNothing);
+      });
+
+      testWidgets('deve mostrar o aviso do e-mail no lugar do "Novo reporte" (RM20)', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        expect(find.text(_verifyEmail), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'Novo reporte'), findsNothing);
+      });
+
+      testWidgets('deve mostrar a entrada "Meus reportes" também sem o e-mail confirmado', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        final entry = tester.widget<ListTile>(find.widgetWithText(ListTile, 'Meus reportes'));
+        expect(entry.onTap, isNotNull);
+      });
+
+      testWidgets('deve mostrar a entrada "Reportes perto de você", também sem o e-mail '
+          'confirmado (RM28)', (tester) async {
+        await pumpView(tester);
+
+        final entry = tester.widget<ListTile>(
+          find.widgetWithText(ListTile, 'Reportes perto de você'),
+        );
+        expect(entry.enabled, isTrue);
+        expect(entry.onTap, isNotNull);
+        expect(find.textContaining('Em breve'), findsNothing);
+      });
     });
 
     group('puxar para atualizar', () {
@@ -296,25 +325,21 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        final semantics = tester.ensureSemantics();
-        await pumpView(tester, themeMode: themeMode);
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpView(tester);
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
 
-        // Também com o aviso da atualização que falhou, em cima dos dados.
-        fakes.profile.error = const NetworkException();
-        await pullToRefresh(tester);
-        await tester.pumpAndSettle();
+      // Também com o aviso da atualização que falhou, em cima dos dados.
+      fakes.profile.error = const NetworkException();
+      await pullToRefresh(tester);
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

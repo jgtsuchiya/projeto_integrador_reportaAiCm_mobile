@@ -26,6 +26,9 @@ class AppTextField extends StatelessWidget {
     this.onFieldSubmitted,
     this.suffixIcon,
     this.scrollPadding = const EdgeInsets.all(20),
+    this.minLines,
+    this.maxLines = 1,
+    this.maxLength,
     super.key,
   });
 
@@ -62,6 +65,14 @@ class AppTextField extends StatelessWidget {
   /// último campo de um formulário, um espaço maior embaixo deixa o botão de enviar à vista.
   final EdgeInsets scrollPadding;
 
+  /// As linhas do campo de texto longo, como a descrição do reporte: começa com [minLines] e
+  /// cresce até [maxLines] (`null`: sem limite).
+  final int? minLines;
+  final int? maxLines;
+
+  /// O limite de caracteres, com o contador embaixo do campo ("12/500").
+  final int? maxLength;
+
   @override
   Widget build(BuildContext context) {
     return TextFormField(
@@ -81,6 +92,9 @@ class AppTextField extends StatelessWidget {
       onChanged: onChanged,
       onFieldSubmitted: onFieldSubmitted,
       scrollPadding: scrollPadding,
+      minLines: minLines,
+      maxLines: obscureText ? 1 : maxLines,
+      maxLength: maxLength,
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,

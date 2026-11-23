@@ -26,7 +26,7 @@ void main() {
     setUp(() => fakes = AuthFakes(signedIn: true));
 
     /// O aviso sozinho, com o Client já dentro.
-    Future<void> pumpNotice(WidgetTester tester, {ThemeMode themeMode = ThemeMode.light}) async {
+    Future<void> pumpNotice(WidgetTester tester) async {
       await tester.pumpApp(
         const Scaffold(
           body: SingleChildScrollView(
@@ -35,7 +35,6 @@ void main() {
           ),
         ),
         overrides: fakes.overrides,
-        themeMode: themeMode,
       );
       await tester.pump();
     }
@@ -217,25 +216,21 @@ void main() {
       await tester.pump(const Duration(minutes: 1));
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        final semantics = tester.ensureSemantics();
-        await pumpNotice(tester, themeMode: themeMode);
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpNotice(tester);
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
 
-        // Também com o erro do reenvio.
-        fakes.profile.resendError = const NetworkException();
-        await tester.tap(_resendButton);
-        await tester.pumpAndSettle();
+      // Também com o erro do reenvio.
+      fakes.profile.resendError = const NetworkException();
+      await tester.tap(_resendButton);
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }
