@@ -19,4 +19,23 @@ extension PumpUntil on WidgetTester {
       await pump(const Duration(milliseconds: 100));
     }
   }
+
+  /// Desenha a tela até o [finder] não achar mais nada, por até [timeout], como o aviso do e-mail
+  /// que some depois da confirmação.
+  Future<void> pumpUntilGone(
+    Finder finder, {
+    String? reason,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+
+    while (finder.evaluate().isNotEmpty) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail(
+          '${reason ?? 'A tela não mudou.'}\nEsperado sumir em até ${timeout.inSeconds} s: $finder',
+        );
+      }
+      await pump(const Duration(milliseconds: 100));
+    }
+  }
 }

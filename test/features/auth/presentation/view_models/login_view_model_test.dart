@@ -190,6 +190,43 @@ void main() {
       });
     });
 
+    group('showNotice', () {
+      const notice = 'Sua conta foi criada. Entre com o e-mail e a senha.';
+
+      test('deve mostrar o aviso de outra tela no lugar dos erros (RM12)', () async {
+        await submit(email: '', password: '');
+
+        sut().showNotice(notice);
+
+        expect(state(), const LoginState(message: notice));
+      });
+
+      test('deve tirar o aviso e os erros quando a outra tela não manda aviso', () async {
+        fakes.auth.signInResult = const SignInWrongCredentials();
+        await submit();
+
+        sut().showNotice(null);
+
+        expect(state(), const LoginState());
+      });
+
+      test('deve manter a contagem do 429', () {
+        fakes.auth.signInResult = const SignInRateLimited(retryAfter: Duration(seconds: 3));
+
+        fakeAsync((async) {
+          unawaited(submit());
+          async.flushMicrotasks();
+
+          sut().showNotice(notice);
+
+          expect(state().retrySeconds, 3);
+          expect(state().message, 'Muitas tentativas. Tente de novo em 3 s.');
+
+          async.elapse(const Duration(seconds: 3));
+        });
+      });
+    });
+
     group('contagem do limite por IP (RM04)', () {
       String messageFor(int seconds) => 'Muitas tentativas. Tente de novo em $seconds s.';
 

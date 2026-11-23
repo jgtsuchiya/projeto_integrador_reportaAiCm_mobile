@@ -71,7 +71,8 @@ final adminProfile = UserProfile(
 );
 
 /// Fake do [ProfileRepository], escrito à mão como o `FakeIdentityProvider` do backend. Cada
-/// teste define o resultado da próxima chamada e confere quantas foram feitas em [calls].
+/// teste define o resultado da próxima chamada e confere quantas foram feitas em [calls] (o
+/// `GET /api/users/me`) e em [resendCalls] (o reenvio do link de confirmação).
 final class FakeProfileRepository implements ProfileRepository {
   /// Devolvido quando não há [error] nem [pending].
   UserProfile result = clientProfile;
@@ -83,6 +84,25 @@ final class FakeProfileRepository implements ProfileRepository {
   Completer<UserProfile>? pending;
 
   int calls = 0;
+
+  /// Lançado no próximo reenvio do link de confirmação, como a `BusinessRuleException` do 422.
+  Exception? resendError;
+
+  /// Enquanto não é completado, o reenvio fica pendente: é o "Enviando" do aviso.
+  Completer<void>? resendPending;
+
+  int resendCalls = 0;
+
+  @override
+  Future<void> resendEmailVerification() async {
+    resendCalls++;
+
+    final pending = resendPending;
+    if (pending != null) await pending.future;
+
+    final error = resendError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<UserProfile> getMe() {

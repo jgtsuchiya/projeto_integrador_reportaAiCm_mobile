@@ -68,6 +68,31 @@ void main() {
       expect(log(), contains('st-access-token: ***'));
     });
 
+    test('não deve mostrar a senha nem o CPF do cadastro, na ida e na volta (RM09)', () async {
+      adapter.reply(
+        201,
+        body: {'id': 'id-do-client', 'name': 'Maria da Silva', 'cpf': '52998224725'},
+      );
+
+      await dio.post<Object?>(
+        '/clients',
+        data: {
+          'name': 'Maria da Silva',
+          'email': 'maria.silva@exemplo.com',
+          'password': 'senha-forte-1',
+          'cpf': '52998224725',
+          'phone': '44999998888',
+          'birthDate': '1990-05-20',
+        },
+      );
+
+      expect(log(), isNot(contains('senha-forte-1')));
+      expect(log(), isNot(contains('52998224725')));
+      expect(log(), contains('"password":"***"'));
+      expect(log(), contains('"cpf":"***"'));
+      expect(log(), contains('Maria da Silva'));
+    });
+
     test('não deve mostrar o corpo das rotas de /auth', () async {
       adapter.reply(
         200,

@@ -92,6 +92,9 @@ testWidgets('deve mostrar a mensagem clara com a API desligada', (tester) async 
 | `tester.pumpWholeApp(overrides:, observers:)`             | O app inteiro, como o `main`: as rotas, as telas e o `AuthController` ([fluxos](#fluxos-do-app-inteiro))                  |
 | `tester.usePhoneScreen(textScale: 2)`                     | Tela de celular pequeno (360 x 640) com a fonte do sistema em 200%. Volta ao padrão no fim do teste                       |
 | `tester.signOutAndConfirm()`                              | Toca no "Sair" da tela e confirma no diálogo, como o usuário. Termina com a saída começada: o teste decide quanto esperar |
+| `openWholeApp(tester, fakes)`                             | O `pumpWholeApp` com os `AuthFakes`, devolvendo as rotas por onde o app passa ([fluxos](#fluxos-do-app-inteiro))          |
+| `expectBackClosesTheApp(tester)` e `appRouter(tester)`    | Confere que o "voltar" do Android fecha o app, e o `GoRouter` do app montado                                              |
+| `tester.leaveAndComeBack()`                               | O app vai para o segundo plano e volta, passando pelos estados do meio ([cuidados](#cuidados))                            |
 | `confirmSignOutButton`                                    | O "Sair" de dentro do diálogo de confirmação, que não se confunde com o botão que abre o diálogo                          |
 | `tester.container()`                                      | O `ProviderContainer` do app montado, do próprio Riverpod: `tester.container().read(authControllerProvider)`              |
 | `testConfig`                                              | A configuração de teste, com a API em `http://localhost:3000`                                                             |
@@ -100,16 +103,17 @@ testWidgets('deve mostrar a mensagem clara com a API desligada', (tester) async 
 
 Um fake usado por um único teste fica no próprio arquivo de teste. Os que servem a vários testes ficam em [`test/support/`](../test/support):
 
-| Fake                    | Substitui             | Como usar                                                                                                                                                                                                              |
-| ----------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `FakeHealthRepository`  | `HealthRepository`    | Defina o `result`, o `error` (lançado na próxima chamada) ou o `pending` (um `Completer`, para o carregando). Confira o `calls`                                                                                        |
-| `FakeHttpAdapter`       | A rede, dentro do Dio | `reply(status, body:, headers:)`, `replyText(...)`, `failWith(DioExceptionType...)` ou `throwError(...)`. As requisições feitas ficam em `requests`                                                                    |
-| `fakeDio(adapter)`      | O `Dio` do app        | O mesmo `createDio` do app, com o `FakeHttpAdapter` no lugar da rede                                                                                                                                                   |
-| `AuthFakes`             | A sessão e o login    | O `FakeSessionManager`, o `FakeAuthRepository` e o `FakeProfileRepository` ligados entre si, como no app. `AuthFakes(signedIn: true)` abre com a sessão guardada. Os `overrides` vão no `pumpApp` ou no `pumpWholeApp` |
-| `FakeSessionManager`    | `SessionManager`      | `hasStoredSession`, `secondFactorPending`, os erros da próxima chamada (`secondFactorError` e `signOutError`) e o `signOutPending`. O `expire()` simula o `UNAUTHORISED` do SDK (RM07)                                 |
-| `FakeAuthRepository`    | `AuthRepository`      | O `signInResult`, o `signInError` ou o `signInPending` do próximo login. Os logins feitos ficam em `signInCalls`. O resto da sessão vai para o `FakeSessionManager` dele                                               |
-| `FakeProfileRepository` | `ProfileRepository`   | O `result` (o `clientProfile`, se o teste não trocar), o `error` ou o `pending`. Confira o `calls`                                                                                                                     |
-| `FakeSessionApi`        | A API do SuperTokens  | Só nos testes de `core/auth/`, com o SDK de verdade: as respostas do signin pelo `Dio` e da renovação e do signout pelo pacote `http`, com o SharedPreferences em memória                                              |
+| Fake                         | Substitui                | Como usar                                                                                                                                                                                                                                                                     |
+| ---------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FakeHealthRepository`       | `HealthRepository`       | Defina o `result`, o `error` (lançado na próxima chamada) ou o `pending` (um `Completer`, para o carregando). Confira o `calls`                                                                                                                                               |
+| `FakeHttpAdapter`            | A rede, dentro do Dio    | `reply(status, body:, headers:)`, `replyText(...)`, `failWith(DioExceptionType...)` ou `throwError(...)`. As requisições feitas ficam em `requests`                                                                                                                           |
+| `fakeDio(adapter)`           | O `Dio` do app           | O mesmo `createDio` do app, com o `FakeHttpAdapter` no lugar da rede                                                                                                                                                                                                          |
+| `AuthFakes`                  | A sessão e o login       | O `FakeSessionManager`, o `FakeAuthRepository`, o `FakeProfileRepository` e o `FakeRegistrationRepository` ligados entre si, como no app. `AuthFakes(signedIn: true)` abre com a sessão guardada. Os `overrides` vão no `pumpApp` ou no `pumpWholeApp`                        |
+| `FakeSessionManager`         | `SessionManager`         | `hasStoredSession`, `secondFactorPending`, os erros da próxima chamada (`secondFactorError` e `signOutError`) e o `signOutPending`. O `expire()` simula o `UNAUTHORISED` do SDK (RM07)                                                                                        |
+| `FakeAuthRepository`         | `AuthRepository`         | O `signInResult`, o `signInError` ou o `signInPending` do próximo login. Os logins feitos ficam em `signInCalls`. No "Esqueci minha senha", o `passwordResetError`, o `passwordResetPending` e o `passwordResetCalls`. O resto da sessão vai para o `FakeSessionManager` dele |
+| `FakeProfileRepository`      | `ProfileRepository`      | O `result` (o `clientProfile`, se o teste não trocar), o `error` ou o `pending`. Confira o `calls`. No reenvio do link de confirmação, o `resendError`, o `resendPending` e o `resendCalls`                                                                                   |
+| `FakeRegistrationRepository` | `RegistrationRepository` | O `result` (o `RegistrationSuccess`, se o teste não trocar), o `error` ou o `pending` do próximo cadastro. Os dados de cada cadastro ficam em `calls`, como iriam para a API                                                                                                  |
+| `FakeSessionApi`             | A API do SuperTokens     | Só nos testes de `core/auth/`, com o SDK de verdade: as respostas do signin pelo `Dio` e da renovação e do signout pelo pacote `http`, com o SharedPreferences em memória                                                                                                     |
 
 O [`fake_profile_repository.dart`](../test/support/fake_profile_repository.dart) também tem os perfis de exemplo: o `clientProfile` (a Maria do `FRONTEND.md` do backend), o `clientProfileJson` (o mesmo, como a API responde), o `adminProfile` (para a RM01) e o `clientProfileWith(name:, phone:, emailVerifiedAt:)`, o Client com um campo trocado.
 
@@ -135,6 +139,7 @@ verify(onRetry.call).called(1);
 - Os providers de tela são `autoDispose`: no teste sem tela, um `container.listen(provider, (_, _) {})` mantém o provider vivo entre as leituras, como a tela aberta. O `listen` já constrói o provider, então configure o fake antes dele.
 - O `retry: noAutomaticRetry` vale também nos testes (o `pumpApp` já usa): sem ele, o Riverpod repetiria a chamada que falhou, e o teste veria o fake ser chamado várias vezes.
 - No teste de widget, leia os providers do app montado pelo `tester.container()`, do Riverpod. Não crie um `ProviderContainer` à parte: ele teria outro `AuthController`, e o estado lido não seria o da tela.
+- **A tela que fecha:** para conferir o que o ViewModel faz quando a tela fecha no meio de uma chamada, guarde a assinatura do `container.listen` e feche-a (`screen.close()`). O `container.invalidate` não serve: o Riverpod 3 reconstrói o provider com a mesma instância do Notifier, e o `ref.mounted` continua `true`. O provider sem ouvintes é descartado num `Future`, depois das microtasks: espere com o `pumpEventQueue()`, ou, dentro do `fakeAsync`, com o `async.elapse(Duration.zero)`.
 
 ### Tempo: `fakeAsync`
 
@@ -159,9 +164,10 @@ No `testWidgets`, o relógio já é falso: o `tester.pump(const Duration(seconds
 
 Os testes de [`test/flows/`](../test/flows) seguem o caminho do usuário de ponta a ponta, do abrir o app até a última tela, como os e2e do backend, mas sem rede: o app inteiro (as rotas, as telas e o `AuthController` de verdade), montado pelo `pumpWholeApp`, com a sessão e os repositórios trocados pelos fakes do `AuthFakes`. Eles rodam no CI, junto com os outros. O fluxo confere o caminho e as regras que dependem de mais de uma tela. Os detalhes de cada tela (cada mensagem, o leitor de tela e a fonte grande) ficam nos testes dela.
 
-| Arquivo                                                      | O que cobre                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`login_flow_test.dart`](../test/flows/login_flow_test.dart) | Abertura sem sessão → login → tela inicial com os dados. Abertura com a sessão guardada → tela inicial direto, ou, sem rede, erro → "Tentar de novo" ou "Sair". Sessão que não renova ou pendente da segunda etapa → login com o aviso. Senha errada → login certo. ADMIN ou segunda etapa no login → aviso. Sessão acabada na tela inicial → login com o aviso → entrar de novo. "Sair" com e sem conexão |
+| Arquivo                                                        | O que cobre                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`login_flow_test.dart`](../test/flows/login_flow_test.dart)   | Abertura sem sessão → login → tela inicial com os dados. Abertura com a sessão guardada → tela inicial direto, ou, sem rede, erro → "Tentar de novo" ou "Sair". Sessão que não renova ou pendente da segunda etapa → login com o aviso. Senha errada → login certo. ADMIN ou segunda etapa no login → aviso. Sessão acabada na tela inicial → login com o aviso → entrar de novo. "Sair" com e sem conexão                                |
+| [`access_flow_test.dart`](../test/flows/access_flow_test.dart) | Login → "Criar conta" → cadastro → tela inicial com o aviso do e-mail, e o "voltar" fecha o app. E-mail que já tem conta → "Entrar" → login com o e-mail, ou → "Esqueci minha senha" → "voltar" → login. Login automático que falha → login com o aviso → entrar. Login → "Esqueci minha senha" → mensagem → "Voltar ao login". Tela inicial → "Reenviar e-mail" → contagem. Segundo plano → volta com o e-mail confirmado → o aviso some |
 
 ```dart
 testWidgets('deve ir direto à tela inicial, sem passar pelo login (RM06)', (tester) async {
@@ -174,8 +180,8 @@ testWidgets('deve ir direto à tela inicial, sem passar pelo login (RM06)', (tes
 });
 ```
 
-- **O caminho inteiro:** o `_openApp` devolve as rotas por onde o app passa, na ordem. Comparar a lista inteira confere também a tela que não pode aparecer, como o login na abertura com a sessão guardada. Quem registra as rotas é um `ProviderObserver`, desde a criação do router: com os fakes, a conferência da sessão termina antes de o `pumpWholeApp` voltar, e um ouvinte ligado depois perderia a primeira troca.
-- **O "voltar" do Android:** depois do login e do "Sair", o `_expectBackClosesTheApp` confere que o "voltar" fecha o app, sem voltar para a tela anterior.
+- **O caminho inteiro:** o `openWholeApp`, do [`app_flow.dart`](../test/support/app_flow.dart), devolve as rotas por onde o app passa, na ordem. Comparar a lista inteira confere também a tela que não pode aparecer, como o login na abertura com a sessão guardada. Quem registra as rotas é um `ProviderObserver` (`RouteHistory`), desde a criação do router: com os fakes, a conferência da sessão termina antes de o `pumpWholeApp` voltar, e um ouvinte ligado depois perderia a primeira troca. Ele lê o `GoRouter.state`, que é o da tela do alto da pilha: a tela aberta com o `push` (como o cadastro, por cima do login) entra na lista, e a volta para o login também.
+- **O "voltar" do Android:** depois do login, do login automático do cadastro e do "Sair", o `expectBackClosesTheApp` confere que o "voltar" fecha o app, sem voltar para a tela anterior.
 - **A regra no nome:** o teste que confere uma regra do app termina com o código dela, como `(RM06)`. O `fvm flutter test --name RM06` roda todos os testes da regra, nas telas, nos ViewModels e nos fluxos.
 
 ## Acessibilidade e fonte grande
@@ -212,6 +218,10 @@ expect(tester.getSemantics(find.text(message)), isSemantics(isLiveRegion: true))
 - **Rótulos fundidos:** o leitor de tela lê um botão como um rótulo só (ex.: "Carregando" e "Entrar"). Para achar uma parte dele, use `find.bySemanticsLabel(RegExp('Carregando'))`.
 - **Animações:** o `pumpAndSettle` espera as animações acabarem e não termina enquanto houver um `CircularProgressIndicator` na tela. No estado de carregando, use o `pump`.
 - **Puxar para atualizar:** puxe a tela com o `tester.fling(find.byType(SingleChildScrollView), const Offset(0, 300), 1000)`, o mesmo gesto dos testes do `RefreshIndicator` no Flutter, e depois desenhe com um `pump()` e um `pump(const Duration(seconds: 1))`, para a animação do indicador chegar ao `onRefresh`.
+- **Segundo plano:** o `AppLifecycleListener` recusa a troca direta de `paused` para `resumed`, e o binding de teste não cria os estados do meio. Use o `tester.leaveAndComeBack()`, do [`app_lifecycle.dart`](../test/support/app_lifecycle.dart), que passa por todos, como no aparelho.
+- **Formulários compridos:** o cadastro não cabe na tela de teste (800 x 600). Role até o botão antes de tocar (`tester.ensureVisible`). Na verificação de acessibilidade, use uma tela alta (`tester.view.physicalSize`), com o formulário inteiro à vista: um botão cortado pela rolagem reprovaria o tamanho do toque sem ser um problema da tela.
+- **Botão que volta a ficar ativo:** a cor do botão muda com uma animação. Depois da contagem, espere com o `pumpAndSettle()` antes da verificação de contraste, que leria a cor no meio da animação.
+- **Gerenciador de senhas:** a tela que fecha (como o cadastro, depois do login automático) termina o contexto do `AutofillGroup` também, sem salvar. Confira o primeiro `TextInput.finishAutofillContext` do log, e não o único.
 
 ## Cobertura
 
@@ -250,10 +260,11 @@ fvm dart run tool/check_coverage.dart
 
 Os testes de `integration_test/` rodam o app inteiro num emulador ou aparelho, com o SDK do SuperTokens e a API de verdade. Eles ficam fora do CI, porque precisariam da API, do SuperTokens Core e de um emulador.
 
-| Arquivo                                                              | O que cobre                                                                                                   |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [`diagnostics_test.dart`](../integration_test/diagnostics_test.dart) | O atalho do diagnóstico no login e o "ok" do `GET /api/health`                                                |
-| [`login_flow_test.dart`](../integration_test/login_flow_test.dart)   | Fluxo do Client: cadastro pela API → senha errada → login → tela inicial com os dados do `/users/me` → "Sair" |
+| Arquivo                                                                          | O que cobre                                                                                                                                                        |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`diagnostics_test.dart`](../integration_test/diagnostics_test.dart)             | O atalho do diagnóstico no login e o "ok" do `GET /api/health`                                                                                                     |
+| [`login_flow_test.dart`](../integration_test/login_flow_test.dart)               | Fluxo do Client: cadastro pela API → senha errada → login → tela inicial com os dados do `/users/me` → "Sair"                                                      |
+| [`registration_flow_test.dart`](../integration_test/registration_flow_test.dart) | Cadastro pela tela do app → login automático → tela inicial com o aviso do e-mail → confirmação pelo link do e-mail, lido no Mailpit → volta ao app → o aviso some |
 
 ### Como rodar
 
@@ -267,7 +278,7 @@ Os testes de `integration_test/` rodam o app inteiro num emulador ou aparelho, c
    npm run start:dev
    ```
 
-2. Confira o `http://localhost:3000/api/health` no navegador da máquina e a `API_URL` do `env/dev.json` para o aparelho ([README](../README.md#conectando-à-api-local)).
+2. Confira o `http://localhost:3000/api/health` no navegador da máquina e a `API_URL` do `env/dev.json` para o aparelho ([README](../README.md#conectando-à-api-local)). O teste do cadastro lê o e-mail no Mailpit do `docker-compose.yml` do backend, no mesmo endereço da API, na porta 8025: no celular pelo USB, rode também o `adb reverse tcp:8025 tcp:8025`.
 3. Se o app do aparelho tiver uma sessão guardada, saia da conta: os dois testes começam no login.
 4. Com o emulador aberto ou o celular conectado:
 
@@ -281,8 +292,9 @@ Os testes de `integration_test/` rodam o app inteiro num emulador ou aparelho, c
 
 O [`TestApi`](../integration_test/support/test_api.dart) prepara o cenário pela API, por fora do app (sem o SDK e sem a sessão do aparelho), como o `E2eApp` do backend:
 
-- **Cadastro:** cada execução cria um Client novo pelo `POST /api/clients`, o autocadastro do app, com um e-mail (`maria.app.<id>@reportaai.invalid`) e um CPF que não se repetem. O e-mail e o CPF são únicos na API, e as falhas de login de um e-mail fixo se somariam até o bloqueio (RN17), como nos testes do backend. O e-mail de verificação do cadastro aparece no Mailpit (`http://localhost:8025`).
-- **Exclusão:** no fim, mesmo quando o teste falha, o Client sai pelo `DELETE /api/users/me`, para a base de dev não acumular contas de teste. A exclusão também encerra a sessão que um teste interrompido deixou no aparelho: na abertura seguinte, o app volta ao login com o aviso de sessão expirada.
+- **Cadastro:** cada execução cria um Client novo pelo `POST /api/clients`, o autocadastro do app, com um e-mail (`maria.app.<id>@reportaai.invalid`) e um CPF que não se repetem. O teste do cadastro pega só os dados (`newClient`) e cadastra pela tela. O e-mail e o CPF são únicos na API, e as falhas de login de um e-mail fixo se somariam até o bloqueio (RN17), como nos testes do backend. O e-mail de verificação do cadastro aparece no Mailpit (`http://localhost:8025`).
+- **E-mails:** o `emailVerificationToken(email)` busca no Mailpit (`/api/v1/search`) o e-mail "Confirme o seu e-mail" da conta, esperando até 15 s pela entrega, e lê o token do link `/verificar-email?token=...`. O `confirmEmail(token)` faz o que a página do painel faria: o `POST /api/email-verifications/confirm`.
+- **Exclusão:** no fim, mesmo quando o teste falha, o Client sai pelo `DELETE /api/users/me`, para a base de dev não acumular contas de teste. Para a conta criada pela tela, o `deleteClient(client, ifExists: true)` ignora a conta que não chegou a existir (o teste falhou antes do cadastro). A exclusão também encerra a sessão que um teste interrompido deixou no aparelho: na abertura seguinte, o app volta ao login com o aviso de sessão expirada.
 - **Limite por IP:** cada execução faz um cadastro e três logins (a senha errada, a certa e o da exclusão). O `POST /api/clients` e o signin aceitam 20 requisições por minuto de cada IP (RN18): rodar o teste muitas vezes seguidas esbarra no limite.
 - **Erros:** quando a API recusa o cadastro ou a exclusão, o erro diz o status e a mensagem dela, sem o corpo da resposta, que traz o CPF (RM09).
 
@@ -292,12 +304,13 @@ Contra a API de verdade, o `pumpAndSettle` não basta: ele termina quando a tela
 
 ### Problemas comuns
 
-| Sintoma                                                        | Causa                                                           | Solução                                                                             |
-| -------------------------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| "O app não abriu no login"                                     | O aparelho tem uma sessão guardada                              | Saia da conta no app e rode de novo                                                 |
-| O cadastro do Client de teste responde 500                     | Faltam as migrations ou o seed na base de dev                   | No backend, `npm run migration:run` e `npm run seed`                                |
-| O cadastro responde 429, ou o login mostra "Muitas tentativas" | O limite por IP, depois de várias execuções seguidas            | Espere 1 minuto                                                                     |
-| O teste não acha a API (`DioException` de conexão)             | A API está fora do ar, ou a `API_URL` não serve para o aparelho | Confira o `/api/health` e a tabela do [README](../README.md#conectando-à-api-local) |
+| Sintoma                                                        | Causa                                                            | Solução                                                                             |
+| -------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| "O app não abriu no login"                                     | O aparelho tem uma sessão guardada                               | Saia da conta no app e rode de novo                                                 |
+| O cadastro do Client de teste responde 500                     | Faltam as migrations ou o seed na base de dev                    | No backend, `npm run migration:run` e `npm run seed`                                |
+| O cadastro responde 429, ou o login mostra "Muitas tentativas" | O limite por IP, depois de várias execuções seguidas             | Espere 1 minuto                                                                     |
+| O teste não acha a API (`DioException` de conexão)             | A API está fora do ar, ou a `API_URL` não serve para o aparelho  | Confira o `/api/health` e a tabela do [README](../README.md#conectando-à-api-local) |
+| "O e-mail de confirmação ... não chegou ao Mailpit"            | O Mailpit está fora do ar, ou a porta 8025 não chega ao aparelho | `npm run db:up` no backend, e o `adb reverse tcp:8025 tcp:8025` no celular pelo USB |
 
 ### Gravação da tela
 
@@ -312,14 +325,15 @@ No emulador, o botão de gravação também fica nos controles estendidos (**...
 
 ## Comandos
 
-| Comando                                                                                       | O que faz                                                      |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `fvm flutter test`                                                                            | Roda os testes unitários, de widget, de fluxo e de arquitetura |
-| `fvm flutter test test/core/config/app_config_test.dart`                                      | Roda um arquivo                                                |
-| `fvm flutter test --name "deve remover"`                                                      | Roda os testes cujo nome contém o texto (ex.: `--name RM07`)   |
-| `fvm flutter test --coverage`                                                                 | Gera o relatório de cobertura em `coverage/lcov.info`          |
-| `fvm dart run tool/check_coverage.dart`                                                       | Confere a cobertura mínima no relatório, como o CI             |
-| `fvm flutter test integration_test --dart-define-from-file=env/dev.json`                      | Roda os testes de integração, com a API local no ar            |
-| `fvm flutter test integration_test/login_flow_test.dart --dart-define-from-file=env/dev.json` | Roda só o fluxo do login contra a API local                    |
+| Comando                                                                                              | O que faz                                                      |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `fvm flutter test`                                                                                   | Roda os testes unitários, de widget, de fluxo e de arquitetura |
+| `fvm flutter test test/core/config/app_config_test.dart`                                             | Roda um arquivo                                                |
+| `fvm flutter test --name "deve remover"`                                                             | Roda os testes cujo nome contém o texto (ex.: `--name RM07`)   |
+| `fvm flutter test --coverage`                                                                        | Gera o relatório de cobertura em `coverage/lcov.info`          |
+| `fvm dart run tool/check_coverage.dart`                                                              | Confere a cobertura mínima no relatório, como o CI             |
+| `fvm flutter test integration_test --dart-define-from-file=env/dev.json`                             | Roda os testes de integração, com a API local no ar            |
+| `fvm flutter test integration_test/login_flow_test.dart --dart-define-from-file=env/dev.json`        | Roda só o fluxo do login contra a API local                    |
+| `fvm flutter test integration_test/registration_flow_test.dart --dart-define-from-file=env/dev.json` | Roda só o fluxo do cadastro, com a API e o Mailpit no ar       |
 
 Os testes não rodam no pre-commit (lá ficam o `dart format` e o analyzer): eles rodam no CI, em todo PR.

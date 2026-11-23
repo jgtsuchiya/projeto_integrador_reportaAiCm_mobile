@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:reportaai_cm/app/routes.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_state.dart';
+import 'package:reportaai_cm/features/auth/presentation/views/forgot_password_view.dart';
 import 'package:reportaai_cm/features/auth/presentation/views/login_view.dart';
+import 'package:reportaai_cm/features/auth/presentation/views/registration_view.dart';
 import 'package:reportaai_cm/features/auth/presentation/views/splash_view.dart';
 import 'package:reportaai_cm/features/health/presentation/views/diagnostics_view.dart';
 import 'package:reportaai_cm/features/home/presentation/views/home_view.dart';
@@ -50,6 +52,17 @@ GoRouter createRouter({
     routes: [
       GoRoute(path: AppRoutes.splash, builder: (context, state) => const SplashView()),
       GoRoute(path: AppRoutes.login, builder: (context, state) => const LoginView()),
+      GoRoute(path: AppRoutes.register, builder: (context, state) => const RegistrationView()),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        // O login manda o e-mail que já estava digitado.
+        builder: (context, state) => ForgotPasswordView(
+          initialEmail: switch (state.extra) {
+            final String email => email,
+            _ => '',
+          },
+        ),
+      ),
       GoRoute(path: AppRoutes.home, builder: (context, state) => const HomeView()),
       if (enableDiagnostics)
         GoRoute(path: AppRoutes.diagnostics, builder: (context, state) => const DiagnosticsView()),
@@ -62,18 +75,24 @@ GoRouter createRouter({
 /// mudam o estado, e o redirect leva à tela certa, trocando a pilha inteira. Por isso, o "voltar"
 /// do Android na tela inicial fecha o app, sem voltar ao login.
 ///
-/// - `AuthChecking` e `AuthLoadFailed`: a abertura;
-/// - `AuthUnauthenticated`: o login. Nenhuma rota autenticada abre sem sessão;
-/// - `AuthAuthenticated`: a rota pedida, menos a abertura e o login, que levam à tela inicial.
+/// - `AuthChecking` e `AuthLoadFailed`: a abertura, também para as rotas públicas;
+/// - `AuthUnauthenticated`: o login, ou a rota pública pedida (o cadastro e o "Esqueci minha
+///   senha"). Nenhuma rota autenticada abre sem sessão;
+/// - `AuthAuthenticated`: a rota pedida, menos a abertura, o login e as rotas públicas, que levam
+///   à tela inicial. Assim, o login automático do cadastro troca a pilha inteira, e o "voltar" não
+///   volta ao cadastro.
 ///
 /// O diagnóstico (só em debug) abre em qualquer estado: ele confere a API antes do login.
 String? redirectFor(AuthState auth, String path) {
   if (path == AppRoutes.diagnostics) return null;
 
+  final isPublic = AppRoutes.public.contains(path);
   final target = switch (auth) {
     AuthChecking() || AuthLoadFailed() => AppRoutes.splash,
+    AuthUnauthenticated() when isPublic => path,
     AuthUnauthenticated() => AppRoutes.login,
-    AuthAuthenticated() when path == AppRoutes.splash || path == AppRoutes.login => AppRoutes.home,
+    AuthAuthenticated() when isPublic || path == AppRoutes.splash || path == AppRoutes.login =>
+      AppRoutes.home,
     AuthAuthenticated() => path,
   };
 

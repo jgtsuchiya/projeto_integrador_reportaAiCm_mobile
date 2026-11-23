@@ -14,7 +14,7 @@ import '../../../../support/fake_profile_repository.dart';
 import '../../../../support/pump_app.dart';
 import '../../../../support/sign_out.dart';
 
-const _unverifiedEmail = 'E-mail não confirmado';
+const _verifyEmail = 'Confirme o seu e-mail';
 const _refreshFailed = 'Os dados não foram atualizados';
 
 void main() {
@@ -102,21 +102,7 @@ void main() {
         expect(find.text('(44) 3333-4444'), findsOneWidget);
       });
 
-      testWidgets('deve mostrar o selo com o e-mail não confirmado', (tester) async {
-        await pumpView(tester);
-
-        expect(find.text(_unverifiedEmail), findsOneWidget);
-      });
-
-      testWidgets('não deve mostrar o selo com o e-mail confirmado', (tester) async {
-        fakes.profile.result = verifiedProfile;
-
-        await pumpView(tester);
-
-        expect(find.text(_unverifiedEmail), findsNothing);
-      });
-
-      testWidgets('deve ler o rótulo, o valor e o selo juntos no leitor de tela', (tester) async {
+      testWidgets('deve ler o rótulo e o valor juntos no leitor de tela', (tester) async {
         final semantics = tester.ensureSemantics();
 
         await pumpView(tester);
@@ -126,8 +112,8 @@ void main() {
           isSemantics(label: 'Telefone\n(44) 99999-8888'),
         );
         expect(
-          tester.getSemantics(find.text(_unverifiedEmail)),
-          isSemantics(label: 'E-mail\nmaria.silva@exemplo.com\n$_unverifiedEmail'),
+          tester.getSemantics(find.text('maria.silva@exemplo.com')),
+          isSemantics(label: 'E-mail\nmaria.silva@exemplo.com'),
         );
         semantics.dispose();
       });
@@ -145,6 +131,33 @@ void main() {
       });
     });
 
+    group('aviso do e-mail (RM14)', () {
+      testWidgets('deve mostrar o aviso, com o reenvio, antes dos dados', (tester) async {
+        await pumpView(tester);
+
+        expect(find.text(_verifyEmail), findsOneWidget);
+        expect(find.text('Reenviar e-mail'), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text(_verifyEmail)).dy,
+          lessThan(tester.getTopLeft(find.text('Seus dados')).dy),
+        );
+      });
+
+      testWidgets('não deve mostrar o aviso com o e-mail confirmado', (tester) async {
+        fakes.profile.result = verifiedProfile;
+
+        await pumpView(tester);
+
+        expect(find.text(_verifyEmail), findsNothing);
+      });
+
+      testWidgets('não deve mostrar mais o selo da sprint 3 no cartão dos dados', (tester) async {
+        await pumpView(tester);
+
+        expect(find.text('E-mail não confirmado'), findsNothing);
+      });
+    });
+
     testWidgets('deve avisar que os reportes chegam em breve, sem ação', (tester) async {
       await pumpView(tester);
 
@@ -159,7 +172,7 @@ void main() {
     group('puxar para atualizar', () {
       testWidgets('deve buscar o perfil de novo e mostrar os dados novos', (tester) async {
         await pumpView(tester);
-        expect(find.text(_unverifiedEmail), findsOneWidget);
+        expect(find.text(_verifyEmail), findsOneWidget);
         fakes.profile.result = verifiedProfile;
 
         await pullToRefresh(tester);
@@ -167,7 +180,7 @@ void main() {
 
         expect(fakes.profile.calls, 2);
         expect(authState(tester), AuthAuthenticated(verifiedProfile));
-        expect(find.text(_unverifiedEmail), findsNothing);
+        expect(find.text(_verifyEmail), findsNothing);
       });
 
       testWidgets('deve mostrar o carregando enquanto atualiza', (tester) async {
@@ -233,7 +246,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(fakes.profile.calls, 2);
-        expect(find.text(_unverifiedEmail), findsNothing);
+        expect(find.text(_verifyEmail), findsNothing);
         semantics.dispose();
       });
     });
@@ -265,7 +278,9 @@ void main() {
       });
     });
 
-    testWidgets('deve aguentar a fonte em 200%, com o selo e o aviso', (tester) async {
+    testWidgets('deve aguentar a fonte em 200%, com o aviso do e-mail e o da atualização', (
+      tester,
+    ) async {
       tester.usePhoneScreen(textScale: 2);
       await pumpView(tester);
       fakes.profile.error = const NetworkException();
@@ -274,7 +289,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(_refreshFailed), findsOneWidget);
-      expect(find.text(_unverifiedEmail), findsOneWidget);
+      expect(find.text(_verifyEmail), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

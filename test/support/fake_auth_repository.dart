@@ -29,6 +29,15 @@ final class FakeAuthRepository implements AuthRepository {
   /// O e-mail e a senha de cada login, na ordem.
   final signInCalls = <({String email, String password})>[];
 
+  /// Lançado no próximo "Esqueci minha senha", como a `RateLimitException` do 429.
+  Exception? passwordResetError;
+
+  /// Enquanto não é completado, o "Esqueci minha senha" fica pendente.
+  Completer<void>? passwordResetPending;
+
+  /// O e-mail de cada "Esqueci minha senha", na ordem, como foi digitado.
+  final passwordResetCalls = <String>[];
+
   @override
   Future<SignInResult> signIn({required String email, required String password}) async {
     signInCalls.add((email: email, password: password));
@@ -57,4 +66,15 @@ final class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<bool> isSecondFactorPending() => session.isSecondFactorPending();
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    passwordResetCalls.add(email);
+
+    final pending = passwordResetPending;
+    if (pending != null) await pending.future;
+
+    final error = passwordResetError;
+    if (error != null) throw error;
+  }
 }

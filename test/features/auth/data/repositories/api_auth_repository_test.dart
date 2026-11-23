@@ -192,6 +192,69 @@ void main() {
       });
     });
 
+    group('requestPasswordReset', () {
+      test('deve chamar o POST /api/password-resets com o e-mail normalizado (RN02)', () async {
+        adapter.reply(204);
+
+        await sut.requestPasswordReset(' Maria.Silva@Exemplo.com ');
+
+        final request = adapter.requests.single;
+        expect(request.method, 'POST');
+        expect(request.uri.path, '/api/password-resets');
+        expect(request.data, {'email': _email});
+      });
+
+      test('deve lançar a ValidationException com o e-mail fora do formato', () async {
+        adapter.reply(
+          400,
+          body: {
+            'statusCode': 400,
+            'error': 'Bad Request',
+            'message': 'Dados inválidos.',
+            'details': [
+              {'field': 'email', 'message': 'E-mail inválido.'},
+            ],
+          },
+        );
+
+        await expectLater(
+          sut.requestPasswordReset('maria@exemplo'),
+          throwsA(
+            isA<ValidationException>().having(
+              (error) => error.messageFor('email'),
+              'messageFor(email)',
+              'E-mail inválido.',
+            ),
+          ),
+        );
+      });
+
+      test('deve lançar a RateLimitException com o Retry-After do 429', () async {
+        adapter.reply(
+          429,
+          body: {'statusCode': 429, 'error': 'Too Many Requests', 'message': 'Muitas.'},
+          headers: {'retry-after': '30'},
+        );
+
+        await expectLater(
+          sut.requestPasswordReset(_email),
+          throwsA(
+            isA<RateLimitException>().having(
+              (error) => error.retryAfter,
+              'retryAfter',
+              const Duration(seconds: 30),
+            ),
+          ),
+        );
+      });
+
+      test('deve lançar a NetworkException sem conexão', () async {
+        adapter.failWith(DioExceptionType.connectionError);
+
+        await expectLater(sut.requestPasswordReset(_email), throwsA(isA<NetworkException>()));
+      });
+    });
+
     group('sessão', () {
       test('deve repassar o hasSession e o isSecondFactorPending do SessionManager', () async {
         session

@@ -5,8 +5,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:reportaai_cm/app/router.dart';
 import 'package:reportaai_cm/app/routes.dart';
 import 'package:reportaai_cm/core/network/api_exception.dart';
+import 'package:reportaai_cm/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_state.dart';
+import 'package:reportaai_cm/features/auth/presentation/views/forgot_password_view.dart';
 import 'package:reportaai_cm/features/auth/presentation/views/login_view.dart';
+import 'package:reportaai_cm/features/auth/presentation/views/registration_view.dart';
 import 'package:reportaai_cm/features/health/health_providers.dart';
 import 'package:reportaai_cm/features/health/presentation/views/diagnostics_view.dart';
 import 'package:reportaai_cm/features/home/presentation/views/home_view.dart';
@@ -38,11 +41,24 @@ void main() {
       (authenticated, AppRoutes.login, AppRoutes.home),
       // Uma rota autenticada nova, como a dos reportes, abre sem mudar o redirect.
       (authenticated, '/reportes', null),
+      // As rotas públicas abrem sem sessão e levam à tela inicial com o Client dentro. Assim, o
+      // login automático do cadastro troca a pilha, e o "voltar" não volta ao cadastro.
+      for (final path in [AppRoutes.register, AppRoutes.forgotPassword]) ...[
+        (unauthenticated, path, null),
+        (const AuthUnauthenticated(reason: UnauthenticatedReason.sessionExpired), path, null),
+        (checking, path, AppRoutes.splash),
+        (loadFailed, path, AppRoutes.splash),
+        (authenticated, path, AppRoutes.home),
+      ],
     ]) {
       test('deve levar de $path para ${expected ?? 'a mesma rota'} com o $state', () {
         expect(redirectFor(state, path), expected);
       });
     }
+
+    test('deve ter só o cadastro e o "Esqueci minha senha" como rotas públicas', () {
+      expect(AppRoutes.public, {'/cadastro', '/esqueci-senha'});
+    });
 
     test('deve abrir o diagnóstico em qualquer estado', () {
       for (final state in [checking, loadFailed, unauthenticated, authenticated]) {
@@ -134,6 +150,63 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(screen), findsOneWidget);
+      });
+    }
+
+    for (final (link, screen) in [
+      ('Criar conta', RegistrationView),
+      ('Esqueci minha senha', ForgotPasswordView),
+    ]) {
+      testWidgets('deve abrir a $screen pelo "$link" do login e voltar ao login', (tester) async {
+        await openApp(tester);
+
+        await tester.tap(find.text(link));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(screen), findsOneWidget);
+        expect(router(tester).canPop(), isTrue);
+
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(LoginView), findsOneWidget);
+      });
+    }
+
+    testWidgets('deve levar ao "Esqueci minha senha" o e-mail digitado no login', (tester) async {
+      await openApp(tester);
+      await tester.enterText(find.widgetWithText(TextFormField, 'E-mail'), ' maria@exemplo.com ');
+
+      await tester.tap(find.text('Esqueci minha senha'));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<ForgotPasswordView>(find.byType(ForgotPasswordView)).initialEmail,
+        'maria@exemplo.com',
+      );
+    });
+
+    for (final (path, screen) in [
+      (AppRoutes.register, RegistrationView),
+      (AppRoutes.forgotPassword, ForgotPasswordView),
+    ]) {
+      testWidgets('deve abrir a rota pública $path sem sessão e levar à tela inicial com ela', (
+        tester,
+      ) async {
+        await openApp(tester);
+
+        router(tester).go(path);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(screen), findsOneWidget);
+
+        // A sessão aberta por fora da tela, como o login automático do cadastro.
+        fakes.session.hasStoredSession = true;
+        await tester.container().read(authControllerProvider.notifier).retry();
+        await tester.pumpAndSettle();
+
+        expect(find.byType(HomeView), findsOneWidget);
+        expect(find.byType(screen), findsNothing);
       });
     }
 

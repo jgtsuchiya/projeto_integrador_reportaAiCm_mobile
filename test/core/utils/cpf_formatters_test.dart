@@ -18,4 +18,14 @@ void main() {
       });
     }
   });
+
+  group('CpfInputFormatter', () {
+    const sut = CpfInputFormatter();
+
+    test('deve formatar no 000.000.000-00, com até 11 dígitos', () {
+      expect(sut.maxDigits, 11);
+      expect(sut.format('52998224725'), '529.982.247-25');
+      expect(sut.format('5299'), '529.9');
+    });
+  });
 }

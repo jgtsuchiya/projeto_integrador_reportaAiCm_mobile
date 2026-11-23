@@ -323,6 +323,37 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets('deve mostrar o "Esqueci minha senha" e o "Criar conta" embaixo do "Entrar"', (
+      tester,
+    ) async {
+      await pumpView(tester);
+
+      final signIn = tester.getTopLeft(find.text('Entrar')).dy;
+      expect(tester.getTopLeft(find.text('Esqueci minha senha')).dy, greaterThan(signIn));
+      expect(tester.getTopLeft(find.text('Criar conta')).dy, greaterThan(signIn));
+      expect(find.text('Ainda não tem conta?'), findsOneWidget);
+    });
+
+    testWidgets('deve desativar os links durante o login', (tester) async {
+      final pending = fakes.auth.signInPending = Completer<SignInResult>();
+      await pumpView(tester);
+      await fillIn(tester);
+
+      await signIn(tester);
+
+      expect(
+        tester.widget<TextButton>(find.widgetWithText(TextButton, 'Esqueci minha senha')).onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Criar conta')).onPressed,
+        isNull,
+      );
+
+      pending.complete(const SignInWrongCredentials());
+      await tester.pump();
+    });
+
     testWidgets('deve mostrar o atalho do diagnóstico só quando ele existe', (tester) async {
       await pumpView(tester, showDiagnostics: true);
 

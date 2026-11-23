@@ -8,4 +8,11 @@ abstract interface class ProfileRepository {
   /// quando a sessão acabou, a `SecondFactorPendingException` com a sessão pendente da segunda
   /// etapa e a `NetworkException` sem conexão.
   Future<UserProfile> getMe();
+
+  /// Reenvia o link de confirmação do e-mail de quem está logado
+  /// (`POST /api/users/me/email-verification`). O link novo substitui os anteriores (RN22).
+  ///
+  /// Lança a `BusinessRuleException` (422) quando o e-mail já foi confirmado, ou quando o último
+  /// e-mail saiu há menos de 1 minuto: a `message` da API diz qual dos dois.
+  Future<void> resendEmailVerification();
 }

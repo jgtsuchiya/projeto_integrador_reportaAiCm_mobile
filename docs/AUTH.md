@@ -1,14 +1,17 @@
-# Login e sessão no app
+# Login, sessão e acesso no app
 
-O app usa o **SuperTokens** da API pelo SDK [`supertokens_flutter`](https://pub.dev/packages/supertokens_flutter) 0.6.5, com a sessão por header. Este documento explica como o SDK está integrado, como o app decide qual tela mostrar e como criar uma tela autenticada nova.
+O app usa o **SuperTokens** da API pelo SDK [`supertokens_flutter`](https://pub.dev/packages/supertokens_flutter) 0.6.5, com a sessão por header. Este documento explica como o SDK está integrado, como o app decide qual tela mostrar, como o cidadão cria a conta, recupera o acesso e confirma o e-mail, e como criar uma tela autenticada nova.
 
-> O funcionamento da sessão do lado da API (Core, guard, papéis e renovação) está no [AUTH.md do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend/blob/develop/docs/AUTH.md), e o guia das rotas para os fronts, no [FRONTEND.md](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend/blob/develop/docs/FRONTEND.md). As decisões e as regras RM01 a RM10 estão no [plano do login](sprints/sprint-3-login.md).
+> O funcionamento da sessão do lado da API (Core, guard, papéis e renovação) está no [AUTH.md do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend/blob/develop/docs/AUTH.md), e o guia das rotas para os fronts, no [FRONTEND.md](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend/blob/develop/docs/FRONTEND.md). As decisões e as regras RM01 a RM10 estão no [plano do login](sprints/sprint-3-login.md), e as RM11 a RM14, no [plano do acesso](sprints/sprint-4-acesso.md).
 
 ## Sumário
 
 - [Visão geral](#visão-geral)
 - [Integração com o SuperTokens](#integração-com-o-supertokens)
 - [Login](#login)
+- [Cadastro](#cadastro)
+- [Esqueci minha senha](#esqueci-minha-senha)
+- [Confirmação do e-mail](#confirmação-do-e-mail)
 - [Estado de login: o AuthController](#estado-de-login-o-authcontroller)
 - [Rotas e redirect](#rotas-e-redirect)
 - [Regras do app](#regras-do-app)
@@ -45,20 +48,24 @@ Três pontos valem para todo o resto do documento:
 - **O `AuthController` é a fonte da verdade.** Ele confere a sessão na abertura, entra, atualiza o perfil, sai e ouve o fim da sessão. As telas chamam as ações dele e desenham o estado.
 - **Nenhuma tela navega sozinha depois do login ou do "Sair".** A tela muda o estado, e o redirect do go_router leva à tela certa.
 
-| Peça                                                                                                 | Papel                                                                                                       |
-| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| [`SessionManager`](../lib/core/auth/session_manager.dart)                                            | Contrato da sessão: `hasSession`, `isSecondFactorPending`, `signOut` e o `Stream` de `SessionEvent`         |
-| [`SuperTokensSessionManager`](../lib/core/auth/supertokens_session_manager.dart)                     | Implementação com o SDK. Faz o `SuperTokens.init` e converte os eventos do SDK                              |
-| [`sessionInterceptors`](../lib/core/auth/session_interceptors.dart)                                  | Os interceptors da sessão, para o `Dio` compartilhado: o do SDK e o `UnauthorizedResponseInterceptor`       |
-| [`sessionManagerProvider`](../lib/core/auth/session_manager_provider.dart)                           | O `SessionManager` do app. Sem valor padrão: o `main` e os testes o fornecem por override                   |
-| [`ApiAuthRepository`](../lib/features/auth/data/repositories/api_auth_repository.dart)               | O login pelo `POST /api/auth/signin`, no `Dio`. O resto da sessão vai para o `SessionManager`               |
-| [`ApiProfileRepository`](../lib/features/profile/data/repositories/api_profile_repository.dart)      | O perfil e o papel, pelo `GET /api/users/me`                                                                |
-| [`AuthController`](../lib/features/auth/presentation/controllers/auth_controller.dart) e `AuthState` | O estado de login do app inteiro ([AuthController](#estado-de-login-o-authcontroller))                      |
-| [`redirectFor` e `routerProvider`](../lib/app/router.dart)                                           | Escolhem a tela a partir do `AuthState` ([rotas](#rotas-e-redirect))                                        |
-| [`SplashView`](../lib/features/auth/presentation/views/splash_view.dart)                             | Abertura (`/abertura`): o carregando e, sem rede, o erro com "Tentar de novo" e "Sair"                      |
-| [`LoginView` e `LoginViewModel`](../lib/features/auth/presentation/views/login_view.dart)            | Login (`/login`): os campos, a conferência antes de enviar, a mensagem de cada resposta e a contagem do 429 |
-| [`HomeView` e `HomeViewModel`](../lib/features/home/presentation/views/home_view.dart)               | Tela inicial (`/inicio`): os dados do `/users/me` e o "puxar para atualizar"                                |
-| [`SignOutButton`](../lib/features/auth/presentation/widgets/sign_out_button.dart)                    | O "Sair", com a confirmação e o erro sem conexão. Serve a qualquer tela                                     |
+| Peça                                                                                                                                  | Papel                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [`SessionManager`](../lib/core/auth/session_manager.dart)                                                                             | Contrato da sessão: `hasSession`, `isSecondFactorPending`, `signOut` e o `Stream` de `SessionEvent`          |
+| [`SuperTokensSessionManager`](../lib/core/auth/supertokens_session_manager.dart)                                                      | Implementação com o SDK. Faz o `SuperTokens.init` e converte os eventos do SDK                               |
+| [`sessionInterceptors`](../lib/core/auth/session_interceptors.dart)                                                                   | Os interceptors da sessão, para o `Dio` compartilhado: o do SDK e o `UnauthorizedResponseInterceptor`        |
+| [`sessionManagerProvider`](../lib/core/auth/session_manager_provider.dart)                                                            | O `SessionManager` do app. Sem valor padrão: o `main` e os testes o fornecem por override                    |
+| [`ApiAuthRepository`](../lib/features/auth/data/repositories/api_auth_repository.dart)                                                | O login pelo `POST /api/auth/signin`, no `Dio`. O resto da sessão vai para o `SessionManager`                |
+| [`ApiProfileRepository`](../lib/features/profile/data/repositories/api_profile_repository.dart)                                       | O perfil e o papel, pelo `GET /api/users/me`                                                                 |
+| [`AuthController`](../lib/features/auth/presentation/controllers/auth_controller.dart) e `AuthState`                                  | O estado de login do app inteiro ([AuthController](#estado-de-login-o-authcontroller))                       |
+| [`redirectFor` e `routerProvider`](../lib/app/router.dart)                                                                            | Escolhem a tela a partir do `AuthState` ([rotas](#rotas-e-redirect))                                         |
+| [`SplashView`](../lib/features/auth/presentation/views/splash_view.dart)                                                              | Abertura (`/abertura`): o carregando e, sem rede, o erro com "Tentar de novo" e "Sair"                       |
+| [`LoginView` e `LoginViewModel`](../lib/features/auth/presentation/views/login_view.dart)                                             | Login (`/login`): os campos, a conferência antes de enviar, a mensagem de cada resposta e a contagem do 429  |
+| [`ApiRegistrationRepository`](../lib/features/auth/data/repositories/api_registration_repository.dart)                                | O cadastro do Client pelo `POST /api/clients` ([cadastro](#cadastro))                                        |
+| [`RegistrationView` e `RegistrationViewModel`](../lib/features/auth/presentation/views/registration_view.dart)                        | Cadastro (`/cadastro`): os campos com as máscaras, a regra da senha e o login automático (RM11 e RM12)       |
+| [`ForgotPasswordView` e `ForgotPasswordViewModel`](../lib/features/auth/presentation/views/forgot_password_view.dart)                 | "Esqueci minha senha" (`/esqueci-senha`): o pedido do link e a espera para pedir de novo (RM13)              |
+| [`EmailVerificationNotice` e `EmailVerificationController`](../lib/features/auth/presentation/widgets/email_verification_notice.dart) | O aviso do e-mail não confirmado, com o reenvio do link, usado pela tela inicial e pelas dos reportes (RM14) |
+| [`HomeView` e `HomeViewModel`](../lib/features/home/presentation/views/home_view.dart)                                                | Tela inicial (`/inicio`): os dados do `/users/me` e o "puxar para atualizar"                                 |
+| [`SignOutButton`](../lib/features/auth/presentation/widgets/sign_out_button.dart)                                                     | O "Sair", com a confirmação e o erro sem conexão. Serve a qualquer tela                                      |
 
 ## Integração com o SuperTokens
 
@@ -170,6 +177,88 @@ sequenceDiagram
 
 Com o `SignInSuccess`, a `LoginView` chama o `TextInput.finishAutofillContext()`, para o gerenciador de senhas do aparelho oferecer salvar. Os campos ficam num `AutofillGroup`, com as dicas `email` e `password`.
 
+## Cadastro
+
+O cidadão cria a conta pelo "Criar conta" do login, que abre o cadastro (`/cadastro`) por cima dele. A API não abre a sessão no cadastro: com a conta criada, o app entra sozinho, pelo mesmo `AuthController.signIn` do login, com o e-mail e a senha que o cidadão acabou de digitar (RM12).
+
+```mermaid
+sequenceDiagram
+    participant V as RegistrationView
+    participant VM as RegistrationViewModel
+    participant R as ApiRegistrationRepository
+    participant EV as EmailVerificationController
+    participant AC as AuthController
+    participant API as API
+    V->>VM: submit(campos com as máscaras)
+    VM->>VM: validateRegistration (RM11)
+    VM->>R: register(ClientRegistration, só os dígitos)
+    R->>API: POST /api/clients
+    API-->>R: 201
+    R-->>VM: RegistrationSuccess
+    VM->>EV: markSent(email): o reenvio espera 1 minuto (RM14)
+    VM->>AC: signIn(email, password)
+    AC-->>VM: SignInSuccess
+    VM-->>V: RegistrationOutcome.signedIn
+    V->>V: TextInput.finishAutofillContext()
+    Note over AC,V: o redirect leva à tela inicial e troca a pilha
+```
+
+- **Conferência antes de enviar (RM11).** O [`validateRegistration`](../lib/features/auth/domain/models/registration_validation.dart) repete as regras dos value objects da API (`Cpf`, `Phone`, `BirthDate`, `Password` e o tamanho do nome), com as mesmas mensagens. Duas mudam de propósito: o campo vazio pede o campo ("Informe o CPF."), como no login, e a data fora do formato pede o da tela (`DD/MM/AAAA`), e não o da API ([ARCHITECTURE.md](ARCHITECTURE.md#o-paralelo-com-o-backend)).
+- **Máscaras.** O CPF, o telefone e a data usam os `TextInputFormatter` de [`core/utils/`](../lib/core/utils). O app envia o CPF e o telefone só com os dígitos (`digitsOnly`) e a data em `AAAA-MM-DD` (`maskedDateToIso`).
+- **Senha.** A regra da RN08 aparece embaixo do campo, com cada item marcado quando cumprido ([`PasswordRules`](../lib/features/auth/presentation/widgets/password_rules.dart)). A troca de senha usa o mesmo widget e o mesmo `validatePassword`.
+- **A senha não fica guardada.** O ViewModel não guarda a senha depois do envio. Com a conta criada, a tela chama o `TextInput.finishAutofillContext()`, e só o gerenciador de senhas do aparelho a salva. Os campos ficam num `AutofillGroup`, com as dicas `name`, `email`, `newPassword` e `telephoneNumber`.
+- **Log.** O `ApiLogInterceptor` mostra o corpo do cadastro com a `password` e o `cpf` como `***`, na ida e na volta (RM09). O `ClientRegistration.toString` também os esconde.
+
+| Resposta da API                | `RegistrationResult` ou exceção                | Na tela                                                                                            |
+| ------------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 201                            | `RegistrationSuccess`                          | O login automático e a tela inicial com o aviso do e-mail (RM12)                                   |
+| 400 com o `details`            | `RegistrationFieldErrors`                      | A mensagem de cada campo embaixo dele                                                              |
+| 409, campo `email`             | `RegistrationFieldErrors(alreadyInUse: email)` | A `message` no campo do e-mail, com os atalhos "Entrar" e "Esqueci minha senha"                    |
+| 409, campo `cpf`               | `RegistrationFieldErrors(alreadyInUse: cpf)`   | A `message` no campo do CPF                                                                        |
+| 429                            | `RegistrationRateLimited`                      | "Muitas tentativas. Tente de novo em N s.", com o "Criar conta" desativado até o fim (como a RM04) |
+| 400 ou 409 sem campo conhecido | `ValidationException` ou `ConflictException`   | A `message` geral, acima do "Criar conta"                                                          |
+| Sem conexão, 5xx               | `NetworkException` ou `ServerException`        | As mensagens padrão do `core/network`. Os campos continuam preenchidos                             |
+
+**Login automático que não entra (RM12).** Se o login depois do 201 não entrar (sem conexão, ou uma resposta inesperada), a conta já existe: a tela volta ao login com o e-mail preenchido e o aviso "Sua conta foi criada. Entre com o e-mail e a senha.".
+
+### Voltar ao login: o `LoginPrefill`
+
+O cadastro e o "Esqueci minha senha" abrem com o `context.push`, por cima do login, e voltam a ele com o [`returnToLogin`](../lib/features/auth/presentation/views/login_view.dart), que fecha a tela com um `LoginPrefill`: o e-mail para preencher o campo e o aviso, se houver. O login preenche o e-mail, apaga a senha e mostra o aviso pelo `LoginViewModel.showNotice` (que não interrompe a contagem do 429).
+
+O atalho "Esqueci minha senha" do 409 também volta ao login, com o `openForgotPassword`, e o login abre o "Esqueci minha senha" em seguida. Assim, o "voltar" de lá volta ao login, e não ao cadastro. Trocar o cadastro pelo "Esqueci minha senha" com o `pushReplacement` não serviria: o go_router cria um `Future` novo, e o do `push` do login nunca completaria.
+
+## Esqueci minha senha
+
+O "Esqueci minha senha" do login abre o `/esqueci-senha` com o e-mail que já estava digitado (pelo `extra` da rota). A tela pede o link pelo `AuthRepository.requestPasswordReset` (`POST /api/password-resets`, com o e-mail pelo `normalizeEmail`). A senha nova é criada na página `/redefinir-senha` do painel web, que o link do e-mail abre no navegador: a tela explica isso e pede para o cidadão voltar ao app depois.
+
+| Resposta da API  | Na tela                                                                                                                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 204              | Sempre a mesma mensagem, com ou sem conta (RN20): "Se este e-mail tiver uma conta, você vai receber um link para criar uma senha nova. O link vale por 60 minutos." e o "Voltar ao login" |
+| 400              | A mensagem do e-mail, no campo                                                                                                                                                            |
+| 429              | A contagem do `Retry-After`, como no login                                                                                                                                                |
+| Sem conexão, 5xx | As mensagens padrão do `core/network`                                                                                                                                                     |
+
+- **Espera para pedir de novo (RM13).** Depois do 204, o botão vira "Enviar de novo em N s" e volta em 60 s: a API manda no máximo um e-mail por minuto para a mesma conta. Com outro e-mail no campo (o cidadão corrigiu o que digitou), é outra conta, e o botão volta a pedir o link sem a espera. A contagem do 429 continua, porque o limite é do IP.
+- **Voltar ao login.** O "Voltar ao login" leva o e-mail do campo para o login.
+
+## Confirmação do e-mail
+
+O Client nasce com o e-mail não confirmado (`emailVerifiedAt` nulo) e recebe, no cadastro, o link de confirmação, que abre a página `/verificar-email` do painel web. O login não depende disso, mas os reportes exigem o e-mail confirmado.
+
+O [`EmailVerificationNotice`](../lib/features/auth/presentation/widgets/email_verification_notice.dart) é o aviso "Confirme o seu e-mail", com o endereço, o motivo (abrir e validar reportes) e o "Reenviar e-mail" (`ProfileRepository.resendEmailVerification`, `POST /api/users/me/email-verification`). Ele aparece só com o Client dentro e o `emailVerifiedAt` nulo, e serve a qualquer tela: a inicial o mostra antes do cartão dos dados, no lugar do selo da sprint 3, e as telas dos reportes vão usar o mesmo widget.
+
+```dart
+// Numa tela autenticada que exige o e-mail confirmado. Fora do e-mail não confirmado, ele não
+// desenha nada.
+const EmailVerificationNotice(),
+```
+
+O estado do reenvio fica no [`EmailVerificationController`](../lib/features/auth/presentation/controllers/email_verification_controller.dart), sem `autoDispose`, porque a espera vale para o app inteiro (RM14):
+
+- **Espera de 1 minuto.** Depois de cada reenvio e logo depois do cadastro (`markSent`), o botão vira "Reenviar e-mail em N s". A espera é da conta do último envio (`forAccount`): a do cadastro de uma conta não vale para outra que entrar depois.
+- **Resultado anunciado.** "Enviamos um novo link para o seu e-mail." ou o erro, num `liveRegion`. O 422 mostra a `message` da API (o e-mail já confirmado ou o último envio há menos de 1 minuto) e atualiza o perfil, porque o e-mail pode ter sido confirmado no navegador.
+- **Volta para o primeiro plano.** Enquanto o aviso está na tela, um `AppLifecycleListener` chama o `refreshOnResume`, que atualiza o perfil pelo `AuthController.refreshProfile`, no máximo uma vez a cada 30 s. Depois de o Client confirmar o e-mail no navegador e voltar ao app, o aviso some sozinho. Uma falha nessa atualização não aparece na tela: o "puxar para atualizar" continua mostrando os erros.
+
 ## Estado de login: o AuthController
 
 O [`AuthController`](../lib/features/auth/presentation/controllers/auth_controller.dart) é um `Notifier` do Riverpod, sem `autoDispose`: o `routerProvider` o ouve enquanto o app está aberto. O estado é o `AuthState`, uma `sealed class`:
@@ -207,13 +296,13 @@ O "puxar para atualizar" da tela inicial repete os passos 2 e 3.
 
 ### Ações
 
-| Ação               | Quem chama                      | O que faz                                                                                                 | Com erro                                                                                |
-| ------------------ | ------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `build()`          | O `routerProvider`, na abertura | `hasSession()` e, com sessão, os passos acima                                                             | Sessão recusada: login com o aviso (RM07). Sem rede: `AuthLoadFailed` (RM06)            |
-| `retry()`          | O "Tentar de novo" da abertura  | O mesmo do `build()`                                                                                      | O mesmo do `build()`                                                                    |
-| `signIn(...)`      | `LoginViewModel`                | Tira o motivo da tela, chama o signin e, com o `SignInSuccess`, os passos acima. Devolve o `SignInResult` | Lança a `ApiException` do signin, e o usuário continua no login                         |
-| `refreshProfile()` | `HomeViewModel`                 | O `/users/me` e o papel de novo                                                                           | Lança a `ApiException`, e o perfil na tela continua. Sessão recusada: login com o aviso |
-| `signOut()`        | `SignOutButton`                 | Encerra a sessão na API e volta ao login, sem aviso                                                       | Lança a `NetworkException`, e o usuário continua logado (RM10)                          |
+| Ação               | Quem chama                                                                      | O que faz                                                                                                 | Com erro                                                                                |
+| ------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `build()`          | O `routerProvider`, na abertura                                                 | `hasSession()` e, com sessão, os passos acima                                                             | Sessão recusada: login com o aviso (RM07). Sem rede: `AuthLoadFailed` (RM06)            |
+| `retry()`          | O "Tentar de novo" da abertura                                                  | O mesmo do `build()`                                                                                      | O mesmo do `build()`                                                                    |
+| `signIn(...)`      | `LoginViewModel` e `RegistrationViewModel` (o login automático)                 | Tira o motivo da tela, chama o signin e, com o `SignInSuccess`, os passos acima. Devolve o `SignInResult` | Lança a `ApiException` do signin, e o usuário continua no login                         |
+| `refreshProfile()` | `HomeViewModel` e `EmailVerificationController` (a volta para o primeiro plano) | O `/users/me` e o papel de novo                                                                           | Lança a `ApiException`, e o perfil na tela continua. Sessão recusada: login com o aviso |
+| `signOut()`        | `SignOutButton`                                                                 | Encerra a sessão na API e volta ao login, sem aviso                                                       | Lança a `NetworkException`, e o usuário continua logado (RM10)                          |
 
 ### Motivos de voltar ao login
 
@@ -233,34 +322,42 @@ Uma operação pode esperar a API enquanto o estado muda por outro caminho: a se
 
 O [`redirectFor`](../lib/app/router.dart) é uma função pura, testada sem tela, que escolhe a rota a partir do `AuthState`:
 
-| Estado                             | Rota pedida                  | Vai para    |
-| ---------------------------------- | ---------------------------- | ----------- |
-| `AuthChecking` ou `AuthLoadFailed` | qualquer uma                 | `/abertura` |
-| `AuthUnauthenticated`              | qualquer uma                 | `/login`    |
-| `AuthAuthenticated`                | `/abertura` ou `/login`      | `/inicio`   |
-| `AuthAuthenticated`                | outra                        | a pedida    |
-| qualquer um                        | `/diagnostico` (só em debug) | a pedida    |
+| Estado                             | Rota pedida                                   | Vai para    |
+| ---------------------------------- | --------------------------------------------- | ----------- |
+| `AuthChecking` ou `AuthLoadFailed` | qualquer uma, também as públicas              | `/abertura` |
+| `AuthUnauthenticated`              | uma pública (`/cadastro` ou `/esqueci-senha`) | a pedida    |
+| `AuthUnauthenticated`              | outra                                         | `/login`    |
+| `AuthAuthenticated`                | `/abertura`, `/login` ou uma pública          | `/inicio`   |
+| `AuthAuthenticated`                | outra                                         | a pedida    |
+| qualquer um                        | `/diagnostico` (só em debug)                  | a pedida    |
+
+- **Rotas públicas.** O cadastro e o "Esqueci minha senha" abrem sem sessão, como uma rota com o `@Public()` no backend. A lista fica em `AppRoutes.public`. Com o Client dentro, elas levam à tela inicial: é assim que o login automático do cadastro sai do `/cadastro`.
 
 - O `routerProvider` ouve o `authControllerProvider` e chama o `notify()` do `RouterRefreshNotifier` (o `refreshListenable`), que faz o go_router reavaliar o redirect a cada mudança do estado.
-- O redirect troca a pilha inteira. Por isso, o "voltar" do Android na tela inicial fecha o app, sem voltar ao login, e o "voltar" no login, depois do "Sair", não volta à tela inicial.
+- O redirect troca a pilha inteira. Por isso, o "voltar" do Android na tela inicial fecha o app, sem voltar ao login nem ao cadastro, e o "voltar" no login, depois do "Sair", não volta à tela inicial.
+- O cadastro e o "Esqueci minha senha" abrem com o `context.push`, por cima do login: o "voltar" deles volta ao login ([`LoginPrefill`](#voltar-ao-login-o-loginprefill)).
 - Uma rota que não existe leva à tela inicial, ou ao login pelo redirect.
 
 ## Regras do app
 
-O texto completo das regras está no [plano do login](sprints/sprint-3-login.md#3-regras-do-app). Cada teste que confere uma regra termina com o código dela: `fvm flutter test --name RM07` roda todos os da RM07.
+O texto completo das regras está no [plano do login](sprints/sprint-3-login.md#3-regras-do-app) (RM01 a RM10) e no [plano do acesso](sprints/sprint-4-acesso.md#3-regras-do-app) (RM11 a RM14). Cada teste que confere uma regra termina com o código dela: `fvm flutter test --name RM07` roda todos os da RM07.
 
-| Código | Regra                                                                                 | Onde fica                                                                         | Testes principais                                                                             |
-| ------ | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| RM01   | Só o CLIENT entra. Outro papel sai da sessão, com o aviso no login                    | `AuthController` (`_loadProfile`) e `Role`                                        | `auth_controller_test.dart` e `login_flow_test.dart`                                          |
-| RM02   | A mesma mensagem para senha errada e conta inexistente, inativa ou excluída           | `LoginViewModel` e `LoginView` (apaga a senha)                                    | `login_view_model_test.dart` e `login_view_test.dart`                                         |
-| RM03   | Bloqueio por tentativas: a `message` da API, sem contagem                             | `SignInResponseDto` e `LoginViewModel`                                            | `sign_in_response_dto_test.dart` e `login_view_model_test.dart`                               |
-| RM04   | Limite por IP: o "Entrar" desativado com a contagem do `Retry-After`                  | `ApiAuthRepository` e `LoginViewModel` (`Timer.periodic`)                         | `login_view_model_test.dart` (com o `fakeAsync`) e `login_view_test.dart`                     |
-| RM05   | Antes de enviar, só o e-mail preenchido e no formato e a senha preenchida             | `validateSignIn` e `isValidEmail`                                                 | `sign_in_validation_test.dart` e `email_test.dart`                                            |
-| RM06   | Com sessão, abre direto na tela inicial. Sem rede, erro com "Tentar de novo" e "Sair" | `SessionManager.hasSession`, `AuthController` e `SplashView`                      | `auth_controller_test.dart`, `splash_view_test.dart` e `login_flow_test.dart`                 |
-| RM07   | A sessão acabou: login com "Sua sessão expirou. Entre de novo."                       | `SuperTokensSessionManager` (`UNAUTHORISED`) e `AuthController`                   | `supertokens_session_manager_test.dart` e `login_flow_test.dart`                              |
-| RM08   | Segunda etapa pendente: sai da sessão, com o aviso no login                           | `isSecondFactorPendingIn` e `AuthController` (`_enter`)                           | `auth_controller_test.dart` e `login_flow_test.dart`                                          |
-| RM09   | Senha, tokens e CPF fora do log e das mensagens. CPF mascarado na tela                | `ApiLogInterceptor`, `enableDebugLogs: false`, `UserProfile.toString` e `maskCpf` | `api_log_interceptor_test.dart`, `cpf_formatters_test.dart` e `home_view_test.dart`           |
-| RM10   | "Sair" com confirmação. Sem conexão, avisa e continua logado                          | `SignOutButton` e `SuperTokensSessionManager.signOut`                             | `sign_out_button_test.dart`, `supertokens_session_manager_test.dart` e `login_flow_test.dart` |
+| Código | Regra                                                                                                                              | Onde fica                                                                                                                                           | Testes principais                                                                                          |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| RM01   | Só o CLIENT entra. Outro papel sai da sessão, com o aviso no login                                                                 | `AuthController` (`_loadProfile`) e `Role`                                                                                                          | `auth_controller_test.dart` e `login_flow_test.dart`                                                       |
+| RM02   | A mesma mensagem para senha errada e conta inexistente, inativa ou excluída                                                        | `LoginViewModel` e `LoginView` (apaga a senha)                                                                                                      | `login_view_model_test.dart` e `login_view_test.dart`                                                      |
+| RM03   | Bloqueio por tentativas: a `message` da API, sem contagem                                                                          | `SignInResponseDto` e `LoginViewModel`                                                                                                              | `sign_in_response_dto_test.dart` e `login_view_model_test.dart`                                            |
+| RM04   | Limite por IP: o "Entrar" desativado com a contagem do `Retry-After`                                                               | `ApiAuthRepository` e `LoginViewModel` (`Timer.periodic`)                                                                                           | `login_view_model_test.dart` (com o `fakeAsync`) e `login_view_test.dart`                                  |
+| RM05   | Antes de enviar, só o e-mail preenchido e no formato e a senha preenchida                                                          | `validateSignIn` e `isValidEmail`                                                                                                                   | `sign_in_validation_test.dart` e `email_test.dart`                                                         |
+| RM06   | Com sessão, abre direto na tela inicial. Sem rede, erro com "Tentar de novo" e "Sair"                                              | `SessionManager.hasSession`, `AuthController` e `SplashView`                                                                                        | `auth_controller_test.dart`, `splash_view_test.dart` e `login_flow_test.dart`                              |
+| RM07   | A sessão acabou: login com "Sua sessão expirou. Entre de novo."                                                                    | `SuperTokensSessionManager` (`UNAUTHORISED`) e `AuthController`                                                                                     | `supertokens_session_manager_test.dart` e `login_flow_test.dart`                                           |
+| RM08   | Segunda etapa pendente: sai da sessão, com o aviso no login                                                                        | `isSecondFactorPendingIn` e `AuthController` (`_enter`)                                                                                             | `auth_controller_test.dart` e `login_flow_test.dart`                                                       |
+| RM09   | Senha, tokens e CPF fora do log e das mensagens. CPF mascarado na tela                                                             | `ApiLogInterceptor`, `enableDebugLogs: false`, `UserProfile.toString` e `maskCpf`                                                                   | `api_log_interceptor_test.dart`, `cpf_formatters_test.dart` e `home_view_test.dart`                        |
+| RM10   | "Sair" com confirmação. Sem conexão, avisa e continua logado                                                                       | `SignOutButton` e `SuperTokensSessionManager.signOut`                                                                                               | `sign_out_button_test.dart`, `supertokens_session_manager_test.dart` e `login_flow_test.dart`              |
+| RM11   | O cadastro confere antes de enviar as regras da API, com as mesmas mensagens. Os erros da API aparecem embaixo de cada campo       | `validateRegistration` (com `isValidCpf`, `isValidPhone`, `isValidBirthDate`, `validatePassword` e `isValidUserName`) e `ApiRegistrationRepository` | `registration_validation_test.dart`, `registration_view_model_test.dart` e `registration_view_test.dart`   |
+| RM12   | Depois do cadastro, entra sozinho e abre a tela inicial. Se o login falhar, volta ao login com o e-mail. A senha não fica guardada | `RegistrationViewModel` (`_signIn`), `RegistrationView` e `LoginPrefill`                                                                            | `registration_view_model_test.dart`, `registration_view_test.dart` e `access_flow_test.dart`               |
+| RM13   | "Esqueci minha senha" com a mesma mensagem, com ou sem conta, e o "Enviar de novo" desativado por 60 s                             | `ForgotPasswordViewModel` e `ForgotPasswordView`                                                                                                    | `forgot_password_view_model_test.dart`, `forgot_password_view_test.dart` e `access_flow_test.dart`         |
+| RM14   | O aviso do e-mail com o "Reenviar e-mail" (60 s de espera, também depois do cadastro), que some ao voltar para o primeiro plano    | `EmailVerificationController` e `EmailVerificationNotice`                                                                                           | `email_verification_controller_test.dart`, `email_verification_notice_test.dart` e `access_flow_test.dart` |
 
 ## Como criar uma tela autenticada nova
 
@@ -276,7 +373,7 @@ static const reports = '/reportes';
 GoRoute(path: AppRoutes.reports, builder: (context, state) => const ReportsView()),
 ```
 
-A rota já nasce protegida, como uma rota do backend sem decorator: o `redirectFor` leva ao login qualquer rota, menos o diagnóstico, enquanto o estado não for `AuthAuthenticated`. Uma rota **pública** (como o cadastro e o "Esqueci minha senha", dos próximos épicos) é a exceção, como o `@Public()`: ela precisa de uma regra no `redirectFor` e de um teste no [`router_test.dart`](../test/app/router_test.dart).
+A rota já nasce protegida, como uma rota do backend sem decorator: o `redirectFor` leva ao login qualquer rota, menos o diagnóstico, enquanto o estado não for `AuthAuthenticated`. Uma rota **pública** (como o cadastro e o "Esqueci minha senha") é a exceção, como o `@Public()`: ela entra no `AppRoutes.public` e ganha os casos dela no teste do `redirectFor`, no [`router_test.dart`](../test/app/router_test.dart).
 
 **2. Repositório.** Chame a API pelo `Dio` do `dioProvider`, dentro do `callApi`. A sessão vai sozinha: o interceptor do SDK põe o `Authorization` e renova o access token vencido. O repositório não lê token nem importa o SDK:
 
@@ -302,11 +399,13 @@ final profile = switch (ref.watch(authControllerProvider)) {
 
 Não guarde uma cópia do perfil no ViewModel: a fonte da verdade é o controller, e o "puxar para atualizar" da tela inicial a muda.
 
-**4. Erros.** Mostre o erro com `ApiException.messageOf(error)`, como em qualquer tela. A tela não trata o fim da sessão: num 401 que não renova, o SDK avisa o `UNAUTHORISED`, e o `AuthController` leva ao login com o aviso da RM07.
+**4. E-mail confirmado.** Se a tela exige o e-mail confirmado (como as dos reportes), mostre o [`EmailVerificationNotice`](#confirmação-do-e-mail) no lugar da ação: ele já tem o reenvio e some sozinho depois da confirmação.
 
-**5. Navegação e "Sair".** Abra a tela com `context.push(AppRoutes.reports)`, para o "voltar" voltar à tela inicial. Se a tela tiver a barra superior própria, use o [`SignOutButton`](../lib/features/auth/presentation/widgets/sign_out_button.dart) nas `actions`: ele pede a confirmação e mostra o erro sem conexão. Nenhuma tela chama o `context.go` para o login.
+**5. Erros.** Mostre o erro com `ApiException.messageOf(error)`, como em qualquer tela. A tela não trata o fim da sessão: num 401 que não renova, o SDK avisa o `UNAUTHORISED`, e o `AuthController` leva ao login com o aviso da RM07.
 
-**6. Testes.** O [`AuthFakes`](../test/support/auth_fakes.dart) liga o `FakeSessionManager`, o `FakeAuthRepository` e o `FakeProfileRepository`. Com `signedIn: true`, o controller chega ao `AuthAuthenticated` com o Client de exemplo:
+**6. Navegação e "Sair".** Abra a tela com `context.push(AppRoutes.reports)`, para o "voltar" voltar à tela inicial. Se a tela tiver a barra superior própria, use o [`SignOutButton`](../lib/features/auth/presentation/widgets/sign_out_button.dart) nas `actions`: ele pede a confirmação e mostra o erro sem conexão. Nenhuma tela chama o `context.go` para o login.
+
+**7. Testes.** O [`AuthFakes`](../test/support/auth_fakes.dart) liga o `FakeSessionManager`, o `FakeAuthRepository`, o `FakeProfileRepository` e o `FakeRegistrationRepository`. Com `signedIn: true`, o controller chega ao `AuthAuthenticated` com o Client de exemplo:
 
 ```dart
 testWidgets('deve mostrar os reportes do Client', (tester) async {
@@ -339,6 +438,6 @@ testWidgets('deve mostrar os reportes do Client', (tester) async {
 
 ## Fora do escopo
 
-Ainda não existem no app: o cadastro do Client, o "Esqueci minha senha", o reenvio da verificação de e-mail, a tela do código da segunda etapa, a edição do perfil, a troca de senha, as sessões abertas, a exclusão da conta, a biometria e o deep link. São os próximos épicos.
+Ainda não existem no app: a tela do código da segunda etapa, a edição do perfil, a troca de senha, as sessões abertas, a exclusão da conta (o épico "Minha conta" do [plano do acesso](sprints/sprint-4-acesso.md)), a biometria e o deep link. A senha nova e a confirmação do e-mail ficam nas páginas `/redefinir-senha` e `/verificar-email` do painel web, que os links dos e-mails abrem no navegador; a troca de e-mail e os termos de uso também ficam fora.
 
-Os pontos em aberto estão no fim do [plano do login](sprints/sprint-3-login.md#9-pontos-em-aberto): os tokens no SharedPreferences, o "Sair" sem internet, a segunda etapa no app, o CPF completo na tela inicial e a validade do refresh token.
+Os pontos em aberto estão no fim do [plano do login](sprints/sprint-3-login.md#9-pontos-em-aberto) (os tokens no SharedPreferences, o "Sair" sem internet, a segunda etapa no app, o CPF completo na tela inicial e a validade do refresh token) e do [plano do acesso](sprints/sprint-4-acesso.md#9-pontos-em-aberto) (as páginas do painel para os links dos e-mails, os termos de uso, a idade mínima, a exclusão sem o app e o e-mail digitado errado).

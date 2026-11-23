@@ -5,6 +5,7 @@ import 'package:reportaai_cm/features/profile/profile_providers.dart';
 
 import 'fake_auth_repository.dart';
 import 'fake_profile_repository.dart';
+import 'fake_registration_repository.dart';
 import 'fake_session_manager.dart';
 
 /// Os fakes do login ligados entre si, como no app: a sessão do [auth] é o [session], que o
@@ -25,9 +26,13 @@ final class AuthFakes {
   late final auth = FakeAuthRepository(session: session);
   final profile = FakeProfileRepository();
 
+  /// O cadastro do Client. Com o cadastro feito, o login automático passa pelo [auth].
+  final registration = FakeRegistrationRepository();
+
   List<Override> get overrides => [
     sessionManagerProvider.overrideWithValue(session),
     authRepositoryProvider.overrideWithValue(auth),
     profileRepositoryProvider.overrideWithValue(profile),
+    registrationRepositoryProvider.overrideWithValue(registration),
   ];
 }

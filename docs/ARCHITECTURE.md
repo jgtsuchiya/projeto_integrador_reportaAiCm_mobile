@@ -29,13 +29,13 @@ lib/
 │   ├── config_error_app.dart    # o que abre quando a configuração do build é inválida
 │   ├── localization.dart        # pt-BR: o idioma do app e a preparação do intl
 │   ├── router.dart              # go_router: rotas e redirect a partir do estado de login
-│   ├── routes.dart              # caminhos das rotas (/abertura, /login, /inicio, /diagnostico)
+│   ├── routes.dart              # caminhos das rotas e as rotas públicas (/cadastro, /esqueci-senha)
 │   └── theme/                   # cores e tema claro e escuro
 ├── core/                        # código transversal (o shared/ do backend)
 │   ├── auth/                    # SessionManager e o SDK do SuperTokens (o único lugar que o importa)
 │   ├── config/                  # AppConfig: a API_URL, validada na abertura
 │   ├── network/                 # Dio, exceções da API, conversão dos erros e log
-│   ├── utils/                   # formatadores (datas, CPF mascarado e telefone)
+│   ├── utils/                   # formatadores, máscaras dos campos e a contagem regressiva
 │   └── widgets/                 # componentes reutilizados (botão, campo, erro, carregando)
 └── features/
     └── <feature>/
@@ -62,7 +62,7 @@ env/
 └── dev.json                     # ignorado pelo Git (o endereço muda por aparelho)
 ```
 
-As subpastas só são criadas quando houver conteúdo, como no backend. A feature [`health`](../lib/features/health) é o exemplo mínimo de referência, com todas as camadas: `HealthRepository` → `GET /api/health` → tela de diagnóstico. As features do login são a [`auth`](../lib/features/auth) (login, sessão, abertura e o `AuthController`) e a [`profile`](../lib/features/profile) (o `GET /api/users/me`), explicadas no [AUTH.md](AUTH.md). A [`home`](../lib/features/home) só tem a apresentação: a tela inicial, com o ViewModel do "puxar para atualizar" e o cartão dos dados, lê o perfil do `AuthController`.
+As subpastas só são criadas quando houver conteúdo, como no backend. A feature [`health`](../lib/features/health) é o exemplo mínimo de referência, com todas as camadas: `HealthRepository` → `GET /api/health` → tela de diagnóstico. As features do acesso são a [`auth`](../lib/features/auth) (login, cadastro, "Esqueci minha senha", sessão, abertura, o `AuthController` e o aviso do e-mail) e a [`profile`](../lib/features/profile) (o `GET /api/users/me` e o reenvio da confirmação do e-mail), explicadas no [AUTH.md](AUTH.md). A [`home`](../lib/features/home) só tem a apresentação: a tela inicial, com o ViewModel do "puxar para atualizar" e o cartão dos dados, lê o perfil do `AuthController`.
 
 ## O paralelo com o backend
 
@@ -82,7 +82,18 @@ As subpastas só são criadas quando houver conteúdo, como no backend. A featur
 | `app/` e `main.dart`                                            | `app.module.ts`, `configure-app.ts` e `main.ts`                                          | Monta a aplicação                                |
 | `test/support/` (`FakeHealthRepository` e `FakeSessionManager`) | `shared/testing/` e `modules/users/testing/` (`FakeMailSender` e `FakeIdentityProvider`) | Fakes escritos à mão para os testes              |
 
-**Regras repetidas do backend.** Quando o app confere antes de enviar uma regra que a API também confere, ela fica no `domain/` da feature, com o mesmo comportamento do value object do backend. Hoje, é o formato do e-mail: o `isValidEmail` e o `normalizeEmail`, de [`auth/domain/models/email.dart`](../lib/features/auth/domain/models/email.dart), seguem o `Email` do backend (RN02). Uma regra diferente da API faria o app recusar o que ela aceita, ou o contrário.
+**Regras repetidas do backend.** Quando o app confere antes de enviar uma regra que a API também confere, ela fica no `domain/` da feature, com o mesmo comportamento do value object do backend. Uma regra diferente da API faria o app recusar o que ela aceita, ou o contrário. Os testes de cada uma repetem os casos do `*.spec.ts` do value object.
+
+| No app ([`auth/domain/models/`](../lib/features/auth/domain/models)) | No backend                           | Regra                                                                                           |
+| -------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `isValidEmail` e `normalizeEmail` (`email.dart`)                     | `Email`                              | Parte local, `@` e domínio com ponto, até 254 caracteres, em minúsculas e sem os espaços (RN02) |
+| `isValidCpf` (`cpf.dart`)                                            | `Cpf`                                | Com ou sem a máscara, os dígitos verificadores certos, sem as sequências repetidas (RN07)       |
+| `isValidPhone` (`phone.dart`)                                        | `Phone`                              | DDD sem zero e o celular com 9 dígitos começando por 9, ou o fixo com 8 começando de 2 a 5      |
+| `isCalendarDate` e `isValidBirthDate` (`birth_date.dart`)            | `BirthDate`                          | `AAAA-MM-DD`, uma data que existe, de 1900 em diante e antes de hoje (em UTC, como a API)       |
+| `validatePassword` e `PasswordRule` (`password.dart`)                | `Password`                           | De 8 a 128 caracteres, com pelo menos uma letra e um número (RN08)                              |
+| `isValidUserName` (`user_name.dart`)                                 | `userNameSchema` e a entidade `User` | De 1 a 120 caracteres, sem os espaços das pontas                                                |
+
+As mensagens também são as da API, juntadas pelo `validateRegistration` (`registration_validation.dart`) no estilo do `validateSignIn`. Duas mudam: o campo vazio pede o campo ("Informe o CPF."), como no login, e a data fora do formato pede o da tela (`DD/MM/AAAA`), que é o que o cidadão digita.
 
 ## Regra de dependência
 
@@ -146,7 +157,7 @@ final class DiagnosticsViewModel extends AsyncNotifier<HealthStatus> {
 ```
 
 - **ViewModel:** um `Notifier` ou `AsyncNotifier` por tela, com o provider no mesmo arquivo. Quando a tela só carrega um dado, o `AsyncNotifier` já traz os estados de carregando, erro e sucesso (`AsyncValue`), que a View desenha com o `when`. Os providers de tela são `autoDispose`: o estado some quando a tela fecha.
-- **Controller:** o estado que vale para o app inteiro, e não para uma tela, fica num `Notifier` em `presentation/controllers/`, sem `autoDispose`. Hoje, só o `AuthController`. Os ViewModels chamam as ações dele (o `LoginViewModel` chama o `signIn`) e guardam só o estado da tela (o erro de cada campo, a contagem do 429).
+- **Controller:** o estado que vale para o app inteiro, e não para uma tela, fica num `Notifier` em `presentation/controllers/`, sem `autoDispose`. Hoje, o `AuthController` e o `EmailVerificationController`, que guarda a espera do reenvio do e-mail entre as telas. Os ViewModels chamam as ações dele (o `LoginViewModel` chama o `signIn`) e guardam só o estado da tela (o erro de cada campo, a contagem do 429).
 - **Sem repetição automática:** o Riverpod 3 repete até 10 vezes um provider que falhou com uma exceção. O app desliga isso (`retry: noAutomaticRetry`, no `ProviderScope` do `main`): quem decide repetir é a tela, com o "Tentar de novo".
 - **Nos testes**, o contrato é trocado por override: `healthRepositoryProvider.overrideWithValue(FakeHealthRepository())`. Os detalhes estão no [TESTING.md](TESTING.md).
 
@@ -208,14 +219,16 @@ Em debug, o [`ApiLogInterceptor`](../lib/core/network/api_log_interceptor.dart) 
 
 As rotas usam o **go_router**, com os caminhos em [`AppRoutes`](../lib/app/routes.dart):
 
-| Rota           | Tela                                            | Quando abre                                       |
-| -------------- | ----------------------------------------------- | ------------------------------------------------- |
-| `/abertura`    | Abertura: o carregando e o erro sem rede (RM06) | Enquanto o app confere a sessão. É a rota inicial |
-| `/login`       | Login                                           | Sem sessão                                        |
-| `/inicio`      | Tela inicial, com os dados do usuário           | Com o Client dentro                               |
-| `/diagnostico` | Diagnóstico da conexão com a API                | Só em debug (`kDebugMode`), em qualquer estado    |
+| Rota             | Tela                                            | Quando abre                                            |
+| ---------------- | ----------------------------------------------- | ------------------------------------------------------ |
+| `/abertura`      | Abertura: o carregando e o erro sem rede (RM06) | Enquanto o app confere a sessão. É a rota inicial      |
+| `/login`         | Login                                           | Sem sessão                                             |
+| `/cadastro`      | Cadastro do Client (RM11 e RM12)                | Sem sessão (rota pública), pelo "Criar conta" do login |
+| `/esqueci-senha` | "Esqueci minha senha" (RM13)                    | Sem sessão (rota pública), pelo link do login          |
+| `/inicio`        | Tela inicial, com o aviso do e-mail e os dados  | Com o Client dentro                                    |
+| `/diagnostico`   | Diagnóstico da conexão com a API                | Só em debug (`kDebugMode`), em qualquer estado         |
 
-- **Redirect central:** o `redirectFor` é o único lugar que escolhe a tela, a partir do estado do `AuthController`. Toda rota, menos o diagnóstico, exige a sessão. Nenhuma tela navega sozinha depois do login ou do "Sair": ela muda o estado, e o redirect leva à tela certa ([AUTH.md](AUTH.md#rotas-e-redirect)).
+- **Redirect central:** o `redirectFor` é o único lugar que escolhe a tela, a partir do estado do `AuthController`. Toda rota, menos o diagnóstico e as públicas (`AppRoutes.public`), exige a sessão. Com o Client dentro, as públicas levam à tela inicial. Nenhuma tela navega sozinha depois do login ou do "Sair": ela muda o estado, e o redirect leva à tela certa ([AUTH.md](AUTH.md#rotas-e-redirect)).
 - **`refreshListenable`:** o `routerProvider` ouve o `authControllerProvider` e chama o `notify()` do `RouterRefreshNotifier`, que faz o go_router reavaliar o redirect.
 - **Rota que não existe** (um deep link antigo, ou o `/diagnostico` no release) leva à tela inicial, ou ao login, para quem não entrou.
 - Para abrir uma tela por cima da atual, com o "voltar", use `context.push(AppRoutes...)`. Para trocar de seção, `context.go(...)`.
@@ -226,22 +239,35 @@ As rotas usam o **go_router**, com os caminhos em [`AppRoutes`](../lib/app/route
 - **Idioma:** só pt-BR, com `flutter_localizations` e `intl`. Os textos ficam direto no código, sem arquivos ARB, enquanto houver um idioma só.
 - **Formatadores** ([`core/utils/`](../lib/core/utils)): a API manda os dados crus, e a máscara é do app.
 
-| Função                          | Exemplo                                                                |
-| ------------------------------- | ---------------------------------------------------------------------- |
-| `formatDate` e `formatDateTime` | `20/05/1990` e `20/05/1990 14:30`                                      |
-| `formatMonthYear`               | `outubro de 2026`                                                      |
-| `maskCpf`                       | `52998224725` → `***.982.247-**`. Fora do formato, mascara tudo (RM09) |
-| `formatPhone`                   | `44999998888` → `(44) 99999-8888`, e o fixo, `(44) 3333-4444`          |
+| Função                          | Exemplo                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| `formatDate` e `formatDateTime` | `20/05/1990` e `20/05/1990 14:30`                                             |
+| `formatMonthYear`               | `outubro de 2026`                                                             |
+| `maskCpf`                       | `52998224725` → `***.982.247-**`. Fora do formato, mascara tudo (RM09)        |
+| `formatPhone`                   | `44999998888` → `(44) 99999-8888`, e o fixo, `(44) 3333-4444`                 |
+| `digitsOnly`                    | `529.982.247-25` → `52998224725`: como o app envia o CPF e o telefone         |
+| `maskedDateToIso`               | `20/05/1990` → `1990-05-20`, ou `null` sem os 8 dígitos                       |
+| `countdownSecondsOf`            | O `Retry-After` em segundos inteiros, arredondado para cima, com pelo menos 1 |
+
+- **Máscaras dos campos** ([`core/utils/`](../lib/core/utils)): `TextInputFormatter` próprios, sem pacote, sobre o `MaskedDigitsInputFormatter`. O campo fica só com os dígitos e é formatado de novo a cada mudança: colar com ou sem a pontuação dá o mesmo resultado, o cursor fica depois do mesmo dígito, e o "apagar" logo depois da pontuação apaga também o dígito antes dela. Use no `inputFormatters` do `AppTextField`.
+
+| Máscara               | Formato                                                                                             | Para enviar       |
+| --------------------- | --------------------------------------------------------------------------------------------------- | ----------------- |
+| `CpfInputFormatter`   | `000.000.000-00`                                                                                    | `digitsOnly`      |
+| `PhoneInputFormatter` | `(00) 0000-0000` e, com 11 dígitos, `(00) 00000-0000`. Tira o `+55` do número preenchido de uma vez | `digitsOnly`      |
+| `DateInputFormatter`  | `dd/mm/aaaa`                                                                                        | `maskedDateToIso` |
+
+- **Contagem regressiva** ([`Countdown`](../lib/core/utils/countdown.dart)): o `Timer.periodic` dos botões que voltam sozinhos, como o "Criar conta" depois do 429 e os reenvios de e-mail. O ViewModel cria um, chama o `start(segundos)` e o `cancel` no `ref.onDispose`.
 
 - **Componentes** ([`core/widgets/`](../lib/core/widgets)):
 
-| Componente         | Uso                                                                                                                                                                                                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PrimaryButton`    | Ação principal da tela. Com `isLoading`, mostra o indicador e ignora o toque, para não enviar duas vezes                                                                                                                                                    |
-| `AppTextField`     | Campo com rótulo e mensagem de erro, da validação local (`validator`) ou da API (`errorText`). Com `obscureText`, o teclado não corrige, não sugere e não aprende o texto. No campo de senha que pode ficar visível, `enableSuggestions: false` mantém isso |
-| `ErrorView`        | Tela de erro, com o "Tentar de novo" quando há `onRetry` e uma ação a mais no `secondaryAction` (ex.: o "Sair" da abertura). O leitor de tela anuncia o erro                                                                                                |
-| `LoadingIndicator` | Indicador de carregamento, com uma mensagem opcional                                                                                                                                                                                                        |
-| `ScrollableCenter` | Centraliza o conteúdo e rola quando ele não cabe (ex.: fonte em 200%)                                                                                                                                                                                       |
+| Componente         | Uso                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PrimaryButton`    | Ação principal da tela. Com `isLoading`, mostra o indicador e ignora o toque, para não enviar duas vezes                                                                                                                                                                                                                                                                                                                                 |
+| `AppTextField`     | Campo com rótulo e mensagem de erro, da validação local (`validator`) ou da API (`errorText`). Com `obscureText`, o teclado não corrige, não sugere e não aprende o texto. No campo de senha que pode ficar visível, `enableSuggestions: false` mantém isso. Aceita as máscaras (`inputFormatters`), a ajuda embaixo (`helperText`) e o `scrollPadding` maior no último campo, para o botão de enviar ficar à vista com o teclado aberto |
+| `ErrorView`        | Tela de erro, com o "Tentar de novo" quando há `onRetry` e uma ação a mais no `secondaryAction` (ex.: o "Sair" da abertura). O leitor de tela anuncia o erro                                                                                                                                                                                                                                                                             |
+| `LoadingIndicator` | Indicador de carregamento, com uma mensagem opcional                                                                                                                                                                                                                                                                                                                                                                                     |
+| `ScrollableCenter` | Centraliza o conteúdo e rola quando ele não cabe (ex.: fonte em 200%)                                                                                                                                                                                                                                                                                                                                                                    |
 
 - **Acessibilidade:** os botões têm pelo menos 48 dp de altura, e toda tela rola, para aguentar a fonte do sistema em 200% sem cortar texto. Os testes dos componentes passam pelas verificações do Flutter (`androidTapTargetGuideline`, `labeledTapTargetGuideline` e `textContrastGuideline`), nos dois temas.
 

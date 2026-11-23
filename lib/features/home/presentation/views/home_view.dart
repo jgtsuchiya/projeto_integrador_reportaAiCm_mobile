@@ -6,12 +6,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:reportaai_cm/core/widgets/scrollable_center.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_state.dart';
+import 'package:reportaai_cm/features/auth/presentation/widgets/email_verification_notice.dart';
 import 'package:reportaai_cm/features/auth/presentation/widgets/sign_out_button.dart';
 import 'package:reportaai_cm/features/home/presentation/view_models/home_view_model.dart';
 import 'package:reportaai_cm/features/home/presentation/widgets/profile_card.dart';
 
-/// Tela inicial (`/inicio`), a primeira com a sessão aberta: a saudação, os dados do usuário e o
-/// "Sair". O redirect só abre esta tela com o Client dentro.
+/// Tela inicial (`/inicio`), a primeira com a sessão aberta: a saudação, o aviso do e-mail ainda
+/// não confirmado (RM14), os dados do usuário e o "Sair". O redirect só abre esta tela com o
+/// Client dentro.
 ///
 /// Puxar para atualizar busca o perfil de novo. Se a atualização falhar, os dados já mostrados
 /// continuam na tela, com o aviso do erro em cima deles.
@@ -68,6 +70,11 @@ class _HomeViewState extends ConsumerState<HomeView> {
                               onRefresh: () => unawaited(_refreshIndicator.currentState?.show()),
                             ),
                             const SizedBox(height: 24),
+                            // Só com o e-mail ainda não confirmado (RM14).
+                            if (profile.emailVerifiedAt == null) ...[
+                              const EmailVerificationNotice(),
+                              const SizedBox(height: 16),
+                            ],
                             ProfileCard(profile: profile),
                             const SizedBox(height: 16),
                             const _ReportsSoonCard(),

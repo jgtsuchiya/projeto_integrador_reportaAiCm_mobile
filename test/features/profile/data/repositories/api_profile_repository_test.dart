@@ -57,5 +57,37 @@ void main() {
 
       await expectLater(sut.getMe(), throwsA(isA<ServerException>()));
     });
+
+    group('resendEmailVerification', () {
+      test('deve chamar o POST /api/users/me/email-verification', () async {
+        adapter.reply(204);
+
+        await sut.resendEmailVerification();
+
+        expect(adapter.requests.single.method, 'POST');
+        expect(adapter.requests.single.uri.path, '/api/users/me/email-verification');
+      });
+
+      test('deve lançar a BusinessRuleException com a message da API no 422', () async {
+        const message = 'Um e-mail acabou de ser enviado. Aguarde um minuto para pedir outro.';
+        adapter.reply(
+          422,
+          body: {'statusCode': 422, 'error': 'Unprocessable Entity', 'message': message},
+        );
+
+        await expectLater(
+          sut.resendEmailVerification(),
+          throwsA(
+            isA<BusinessRuleException>().having((error) => error.message, 'message', message),
+          ),
+        );
+      });
+
+      test('deve lançar a NetworkException sem conexão', () async {
+        adapter.failWith(DioExceptionType.connectionError);
+
+        await expectLater(sut.resendEmailVerification(), throwsA(isA<NetworkException>()));
+      });
+    });
   });
 }

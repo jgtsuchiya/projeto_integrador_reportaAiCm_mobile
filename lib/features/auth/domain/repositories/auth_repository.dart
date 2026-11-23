@@ -25,4 +25,12 @@ abstract interface class AuthRepository {
   /// RM08). Lança a `UnauthorizedException` quando a sessão acabou e foi apagada, e a
   /// `NetworkException` sem rede para renovar, com a sessão mantida.
   Future<bool> isSecondFactorPending();
+
+  /// "Esqueci minha senha": pede o link para criar uma senha nova (`POST /api/password-resets`,
+  /// público), com o [email] sem os espaços das pontas e em minúsculas (RN02). A API responde do
+  /// mesmo jeito com ou sem conta (RN20), e o método termina sem dizer qual foi o caso.
+  ///
+  /// Lança a `ValidationException` com o e-mail fora do formato, a `RateLimitException` no limite
+  /// por IP, a `NetworkException` sem conexão e a `ServerException` no 5xx.
+  Future<void> requestPasswordReset(String email);
 }
