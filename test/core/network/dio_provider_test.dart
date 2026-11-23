@@ -6,6 +6,7 @@ import 'package:reportaai_cm/core/config/app_config.dart';
 import 'package:reportaai_cm/core/config/app_config_provider.dart';
 import 'package:reportaai_cm/core/network/api_log_interceptor.dart';
 import 'package:reportaai_cm/core/network/dio_provider.dart';
+import 'package:reportaai_cm/core/network/user_agent.dart';
 import 'package:supertokens_flutter/dio.dart';
 
 import '../../support/fake_http_adapter.dart';
@@ -21,6 +22,20 @@ void main() {
       expect(sut.options.receiveTimeout, const Duration(seconds: 15));
       expect(sut.options.contentType, Headers.jsonContentType);
       expect(sut.options.headers[Headers.acceptHeader], Headers.jsonContentType);
+    });
+
+    test('deve mandar o user agent do app em todas as chamadas, quando informado', () async {
+      final adapter = FakeHttpAdapter()..reply(200, body: {'status': 'ok'});
+      final sut = createDio(testConfig, userAgent: 'ReportaAiCm/0.1.0 (Android)')
+        ..httpClientAdapter = adapter;
+
+      await sut.get<Object?>('/health');
+
+      expect(adapter.requests.single.headers['user-agent'], 'ReportaAiCm/0.1.0 (Android)');
+    });
+
+    test('deve deixar o user agent padrão sem um informado', () {
+      expect(createDio(testConfig).options.headers, isNot(contains('user-agent')));
     });
 
     test('deve montar o endereço da rota a partir do caminho com barra', () async {
@@ -78,6 +93,19 @@ void main() {
       expect(sut.options.baseUrl, 'http://localhost:3000/api');
       expect(sut.interceptors.whereType<SuperTokensInterceptorWrapper>(), hasLength(1));
       expect(container.read(dioProvider), same(sut));
+    });
+
+    test('deve usar o user agent do userAgentProvider', () {
+      final container = ProviderContainer.test(
+        overrides: [
+          appConfigProvider.overrideWithValue(testConfig),
+          userAgentProvider.overrideWithValue('ReportaAiCm/0.1.0 (iOS 17.4)'),
+        ],
+      );
+
+      final sut = container.read(dioProvider);
+
+      expect(sut.options.headers['user-agent'], 'ReportaAiCm/0.1.0 (iOS 17.4)');
     });
   });
 }

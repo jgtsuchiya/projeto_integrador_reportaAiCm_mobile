@@ -16,8 +16,8 @@ void main() {
         'Este aplicativo é para cidadãos. Administradores usam o painel web.', // RM01
       );
       expect(
-        UnauthenticatedReason.secondFactorPending.message,
-        'A verificação em duas etapas ainda não está disponível no app.', // RM08
+        UnauthenticatedReason.accountDeleted.message,
+        'Sua conta foi excluída.', // RM17
       );
     });
 
@@ -34,14 +34,16 @@ void main() {
         const AuthUnauthenticated(reason: UnauthenticatedReason.roleNotAllowed),
         const AuthUnauthenticated(reason: UnauthenticatedReason.roleNotAllowed),
       );
+      expect(const AuthSecondFactorPending(), const AuthSecondFactorPending());
       expect(AuthAuthenticated(clientProfile), AuthAuthenticated(clientProfile));
       expect(const AuthLoadFailed(NetworkException()), const AuthLoadFailed(NetworkException()));
       expect({
         const AuthChecking().hashCode,
         const AuthUnauthenticated().hashCode,
+        const AuthSecondFactorPending().hashCode,
         AuthAuthenticated(clientProfile).hashCode,
         const AuthLoadFailed(NetworkException()).hashCode,
-      }, hasLength(4));
+      }, hasLength(5));
     });
 
     test('deve diferenciar o login com e sem o motivo', () {
@@ -61,6 +63,7 @@ void main() {
         'AuthUnauthenticated(reason: sessionExpired)',
       );
       expect(const AuthChecking().toString(), 'AuthChecking()');
+      expect(const AuthSecondFactorPending().toString(), 'AuthSecondFactorPending()');
       expect(
         const AuthLoadFailed(NetworkException()).toString(),
         contains(NetworkException.defaultMessage),

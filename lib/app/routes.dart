@@ -12,8 +12,30 @@ abstract final class AppRoutes {
   /// "Esqueci minha senha". Rota pública: abre sem sessão (RM13).
   static const forgotPassword = '/esqueci-senha';
 
+  /// Código da verificação em duas etapas, com a sessão pendente da segunda etapa (RM18). É a única
+  /// tela que a sessão pendente abre.
+  static const secondFactor = '/verificacao';
+
   /// Tela inicial, a primeira com a sessão aberta.
   static const home = '/inicio';
+
+  /// "Minha conta": os dados e as entradas das telas abaixo, abertas por cima dela.
+  static const account = '/conta';
+
+  /// Edição do nome, do telefone e da data de nascimento.
+  static const accountDetails = '/conta/dados';
+
+  /// Troca de senha (RM15 e RM16).
+  static const accountPassword = '/conta/senha';
+
+  /// Sessões abertas em outros aparelhos (RM19).
+  static const accountSessions = '/conta/sessoes';
+
+  /// Ativar e desativar a verificação em duas etapas (RM15).
+  static const accountSecondFactor = '/conta/verificacao';
+
+  /// Exclusão da conta (RM15 e RM17).
+  static const accountDeletion = '/conta/excluir';
 
   /// Diagnóstico da conexão com a API. Só existe em debug.
   static const diagnostics = '/diagnostico';

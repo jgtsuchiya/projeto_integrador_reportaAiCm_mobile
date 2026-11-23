@@ -4,9 +4,9 @@ import 'package:reportaai_cm/core/utils/date_formatters.dart';
 import 'package:reportaai_cm/core/utils/phone_formatters.dart';
 import 'package:reportaai_cm/features/profile/domain/models/user_profile.dart';
 
-/// O cartão "Seus dados" da tela inicial, com o perfil do `GET /api/users/me` formatado. O CPF
-/// aparece mascarado (RM09). O e-mail ainda não confirmado fica com o `EmailVerificationNotice`,
-/// fora do cartão.
+/// O cartão "Seus dados" da tela inicial e da "Minha conta", com o perfil do `GET /api/users/me`
+/// formatado. O CPF aparece mascarado (RM09). O e-mail ainda não confirmado fica com o
+/// `EmailVerificationNotice`, fora do cartão.
 class ProfileCard extends StatelessWidget {
   const new({required this.profile, super.key});
 

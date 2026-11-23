@@ -137,6 +137,27 @@ void main() {
       expect(log(), contains('"name":"Maria"'));
     });
 
+    test('não deve mostrar o IP nem o user agent da lista de sessões abertas', () async {
+      adapter.reply(
+        200,
+        body: [
+          {
+            'id': 'sessao-1',
+            'createdAt': '2026-10-06T12:00:00.000Z',
+            'ipAddress': '203.0.113.10',
+            'userAgent': 'Mozilla/5.0 (X11; Linux x86_64)',
+            'current': true,
+          },
+        ],
+      );
+
+      await dio.get<Object?>('/users/me/sessions');
+
+      expect(log(), isNot(contains('203.0.113.10')));
+      expect(log(), isNot(contains('Mozilla')));
+      expect(log(), contains('"id":"sessao-1"'));
+    });
+
     test('deve mascarar o token na query', () async {
       adapter.reply(204);
 

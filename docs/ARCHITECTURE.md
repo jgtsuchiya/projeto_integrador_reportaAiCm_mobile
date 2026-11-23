@@ -34,7 +34,7 @@ lib/
 ├── core/                        # código transversal (o shared/ do backend)
 │   ├── auth/                    # SessionManager e o SDK do SuperTokens (o único lugar que o importa)
 │   ├── config/                  # AppConfig: a API_URL, validada na abertura
-│   ├── network/                 # Dio, exceções da API, conversão dos erros e log
+│   ├── network/                 # Dio, User-Agent do app, exceções da API, conversão dos erros e log
 │   ├── utils/                   # formatadores, máscaras dos campos e a contagem regressiva
 │   └── widgets/                 # componentes reutilizados (botão, campo, erro, carregando)
 └── features/
@@ -55,14 +55,14 @@ test/                            # espelha lib/
 ├── support/                     # pumpApp e fakes compartilhados
 ├── flows/                       # fluxos do app inteiro, com os fakes
 └── architecture_test.dart       # confere a regra de dependência
-integration_test/                # fluxos ponta a ponta, contra a API local
+integration_test/                # fluxos ponta a ponta, contra a API local (support/ com o TestApi)
 tool/                            # scripts do desenvolvimento e do CI (cobertura mínima)
 env/
 ├── dev.example.json             # versionado
 └── dev.json                     # ignorado pelo Git (o endereço muda por aparelho)
 ```
 
-As subpastas só são criadas quando houver conteúdo, como no backend. A feature [`health`](../lib/features/health) é o exemplo mínimo de referência, com todas as camadas: `HealthRepository` → `GET /api/health` → tela de diagnóstico. As features do acesso são a [`auth`](../lib/features/auth) (login, cadastro, "Esqueci minha senha", sessão, abertura, o `AuthController` e o aviso do e-mail) e a [`profile`](../lib/features/profile) (o `GET /api/users/me` e o reenvio da confirmação do e-mail), explicadas no [AUTH.md](AUTH.md). A [`home`](../lib/features/home) só tem a apresentação: a tela inicial, com o ViewModel do "puxar para atualizar" e o cartão dos dados, lê o perfil do `AuthController`.
+As subpastas só são criadas quando houver conteúdo, como no backend. A feature [`health`](../lib/features/health) é o exemplo mínimo de referência, com todas as camadas: `HealthRepository` → `GET /api/health` → tela de diagnóstico. As features do acesso são a [`auth`](../lib/features/auth) (login, cadastro, "Esqueci minha senha", sessão, abertura, a tela do código da segunda etapa, o `AuthController` e o aviso do e-mail), a [`profile`](../lib/features/profile) (as rotas de `/api/users/me` e o cartão dos dados, o `ProfileCard`) e a [`account`](../lib/features/account) (a "Minha conta", com as telas de cada ação, e as sessões abertas), explicadas no [AUTH.md](AUTH.md). A `account` depende da `auth` e da `profile`, e nenhuma das duas depende dela. A [`home`](../lib/features/home) só tem a apresentação: a tela inicial, com o ViewModel do "puxar para atualizar", lê o perfil do `AuthController`.
 
 ## O paralelo com o backend
 
@@ -175,7 +175,10 @@ Todas as chamadas à API passam pelo mesmo `Dio`, fornecido pelo `dioProvider`:
 
 - `baseUrl` `${API_URL}/api`, JSON na ida e na volta, 10 s para conectar e 15 s para a resposta;
 - os caminhos começam com `/`, sem o prefixo: `dio.get('/health')` chama `GET /api/health`;
-- os interceptors da sessão (o do SDK do SuperTokens e o `UnauthorizedResponseInterceptor`) entram antes do de log: o access token vai no `Authorization`, e o vencido é renovado sozinho ([AUTH.md](AUTH.md#interceptors-no-dio)).
+- os interceptors da sessão (o do SDK do SuperTokens e o `UnauthorizedResponseInterceptor`) entram antes do de log: o access token vai no `Authorization`, e o vencido é renovado sozinho ([AUTH.md](AUTH.md#interceptors-no-dio));
+- o `User-Agent` do app, `ReportaAiCm/<versão> (<sistema>)`, como `ReportaAiCm/0.1.0 (Android)`, que a API grava em cada login e a lista de sessões abertas mostra ([AUTH.md](AUTH.md#sessões-abertas)).
+
+**`User-Agent`.** O [`buildUserAgent`](../lib/core/network/user_agent.dart) monta o texto com a versão do `pubspec.yaml`, lida pelo pacote **`package_info_plus`** no `main`, e o sistema do `Platform` do `dart:io`. Ele entra no `ProviderScope` pelo `userAgentProvider`, e o `dioProvider` o passa ao `createDio`. A versão do sistema só vai no iOS e no macOS: no Android e no Linux, o `Platform.operatingSystemVersion` é a versão do kernel (`Linux 5.10.66-android12-9-...`), que não diz nada ao usuário, e o texto leva só o nome (`(Android)`). Nos testes, sem o override, vale o padrão do `dart:io`.
 
 ### Erros: `callApi` e as `ApiException`
 
@@ -192,17 +195,17 @@ Future<HealthStatus> check() => callApi(() async {
 | Resposta da API                                                | Exceção                        | Detalhe                                            |
 | -------------------------------------------------------------- | ------------------------------ | -------------------------------------------------- |
 | 400                                                            | `ValidationException`          | `fieldErrors` e `messageFor(campo)`                |
-| 401                                                            | `UnauthorizedException`        | `field` (ex.: senha atual incorreta)               |
+| 401                                                            | `UnauthorizedException`        | Só a sessão: sem sessão ou sessão vencida          |
 | 403 com `claimValidationErrors` (sessão pendente, SuperTokens) | `SecondFactorPendingException` | Falta o código da verificação em duas etapas       |
 | 403                                                            | `ForbiddenException`           | O papel não pode fazer a operação                  |
 | 404                                                            | `NotFoundException`            |                                                    |
 | 409                                                            | `ConflictException`            | `field` (ex.: `email` ou `cpf`)                    |
-| 422                                                            | `BusinessRuleException`        |                                                    |
+| 422                                                            | `BusinessRuleException`        | `field` (ex.: senha de confirmação incorreta)      |
 | 429                                                            | `RateLimitException`           | `retryAfter`, do header `Retry-After`              |
 | 5xx, outro status, resposta fora do formato ou erro inesperado | `ServerException`              | Sempre a mensagem padrão. O motivo fica no `cause` |
 | Sem conexão ou timeout                                         | `NetworkException`             | `isTimeout`                                        |
 
-- O 401 só chega ao `callApi` quando a sessão não renova mais: antes disso, o interceptor do SDK renova a sessão e repete a chamada. O 401 da senha de confirmação incorreta tem um cuidado à parte ([AUTH.md](AUTH.md#cuidados)).
+- O 401 só chega ao `callApi` quando a sessão não renova mais: antes disso, o interceptor do SDK renova a sessão e repete a chamada. A API só responde 401 para a sessão: a senha de confirmação incorreta é um 422, com o `field` do campo ([AUTH.md](AUTH.md#a-senha-de-confirmação-rm15)).
 - A `message` vem da API quando o corpo está no formato de erro da aplicação (`statusCode`, `error`, `message`, `details`). Sem ele, como sem conexão ou nas respostas do SuperTokens, que vêm em inglês (`unauthorised`, `invalid claim`), vale o texto padrão de cada exceção.
 - A tela mostra o erro com `ApiException.messageOf(error)`, que também cobre um erro que não é da API.
 - Um erro inesperado (ex.: um campo que não veio no JSON) vira `ServerException` e não derruba o app. Em debug, o motivo vai para o console.
@@ -213,23 +216,31 @@ Em debug, o [`ApiLogInterceptor`](../lib/core/network/api_log_interceptor.dart) 
 
 - os headers de sessão (`Authorization`, `st-access-token`, `st-refresh-token`, `front-token`, `anti-csrf` e os cookies) saem como `***`;
 - o corpo das rotas de `/api/auth` (login, renovação e saída) não aparece;
-- nos outros corpos e na query, os campos `password`, `currentPassword`, `newPassword`, `token`, `code` e `cpf` saem como `***`.
+- nos outros corpos e na query, os campos `password`, `currentPassword`, `newPassword`, `token`, `code`, `cpf`, `ipAddress` e `userAgent` (os dois últimos, da lista de sessões abertas) saem como `***`.
 
 ## Navegação (`app/router.dart`)
 
 As rotas usam o **go_router**, com os caminhos em [`AppRoutes`](../lib/app/routes.dart):
 
-| Rota             | Tela                                            | Quando abre                                            |
-| ---------------- | ----------------------------------------------- | ------------------------------------------------------ |
-| `/abertura`      | Abertura: o carregando e o erro sem rede (RM06) | Enquanto o app confere a sessão. É a rota inicial      |
-| `/login`         | Login                                           | Sem sessão                                             |
-| `/cadastro`      | Cadastro do Client (RM11 e RM12)                | Sem sessão (rota pública), pelo "Criar conta" do login |
-| `/esqueci-senha` | "Esqueci minha senha" (RM13)                    | Sem sessão (rota pública), pelo link do login          |
-| `/inicio`        | Tela inicial, com o aviso do e-mail e os dados  | Com o Client dentro                                    |
-| `/diagnostico`   | Diagnóstico da conexão com a API                | Só em debug (`kDebugMode`), em qualquer estado         |
+| Rota                 | Tela                                            | Quando abre                                            |
+| -------------------- | ----------------------------------------------- | ------------------------------------------------------ |
+| `/abertura`          | Abertura: o carregando e o erro sem rede (RM06) | Enquanto o app confere a sessão. É a rota inicial      |
+| `/login`             | Login                                           | Sem sessão                                             |
+| `/cadastro`          | Cadastro do Client (RM11 e RM12)                | Sem sessão (rota pública), pelo "Criar conta" do login |
+| `/esqueci-senha`     | "Esqueci minha senha" (RM13)                    | Sem sessão (rota pública), pelo link do login          |
+| `/verificacao`       | Código da verificação em duas etapas (RM18)     | Com a sessão pendente da segunda etapa                 |
+| `/inicio`            | Tela inicial, com o aviso do e-mail e os dados  | Com o Client dentro                                    |
+| `/conta`             | "Minha conta"                                   | Com o Client dentro, pela ação da tela inicial         |
+| `/conta/dados`       | Editar o nome, o telefone e a data              | Com o Client dentro, pela "Minha conta"                |
+| `/conta/senha`       | Trocar a senha (RM15 e RM16)                    | Com o Client dentro, pela "Minha conta"                |
+| `/conta/sessoes`     | Sessões abertas (RM19)                          | Com o Client dentro, pela "Minha conta"                |
+| `/conta/verificacao` | Ativar e desativar a verificação em duas etapas | Com o Client dentro, pela "Minha conta"                |
+| `/conta/excluir`     | Excluir a conta (RM17)                          | Com o Client dentro, pela "Minha conta"                |
+| `/diagnostico`       | Diagnóstico da conexão com a API                | Só em debug (`kDebugMode`), em qualquer estado         |
 
-- **Redirect central:** o `redirectFor` é o único lugar que escolhe a tela, a partir do estado do `AuthController`. Toda rota, menos o diagnóstico e as públicas (`AppRoutes.public`), exige a sessão. Com o Client dentro, as públicas levam à tela inicial. Nenhuma tela navega sozinha depois do login ou do "Sair": ela muda o estado, e o redirect leva à tela certa ([AUTH.md](AUTH.md#rotas-e-redirect)).
-- **`refreshListenable`:** o `routerProvider` ouve o `authControllerProvider` e chama o `notify()` do `RouterRefreshNotifier`, que faz o go_router reavaliar o redirect.
+- **Redirect central:** o `redirectFor` é o único lugar que escolhe a tela, a partir do estado do `AuthController`. Toda rota, menos o diagnóstico e as públicas (`AppRoutes.public`), exige a sessão. Com o Client dentro, as públicas levam à tela inicial, e a sessão pendente da segunda etapa só abre a `/verificacao`. Nenhuma tela navega sozinha depois do login ou do "Sair": ela muda o estado, e o redirect leva à tela certa ([AUTH.md](AUTH.md#rotas-e-redirect)).
+- **`refreshListenable`:** o `routerProvider` ouve o `authControllerProvider` e, quando o tipo do estado muda (`changesRoute`), chama o `notify()` do `RouterRefreshNotifier`, que faz o go_router reavaliar o redirect. O perfil novo não reavalia: o go_router reconstruiria a pilha a partir da última rota que conhece, e a tela que acabou de fechar com o `pop` voltaria a abrir.
+- **Rotas aninhadas:** as telas da conta ficam embaixo da `/conta` (`routes:` da `GoRoute`), e um deep link para uma delas abre com a `/conta` atrás.
 - **Rota que não existe** (um deep link antigo, ou o `/diagnostico` no release) leva à tela inicial, ou ao login, para quem não entrou.
 - Para abrir uma tela por cima da atual, com o "voltar", use `context.push(AppRoutes...)`. Para trocar de seção, `context.go(...)`.
 

@@ -2,7 +2,7 @@
 
 App do cidadão do **ReportaAi Cm**, plataforma para que os moradores de **Campo Mourão (PR)** reportem buracos no asfalto e para que a prefeitura acompanhe e analise esses reportes.
 
-> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI), o login do cidadão, com a tela inicial com os dados dele, o cadastro pelo app, o "Esqueci minha senha" e o aviso para confirmar o e-mail. A área "Minha conta" e os reportes entram nas próximas sprints.
+> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI), o login do cidadão, com a tela inicial com os dados dele, o cadastro pelo app, o "Esqueci minha senha", o aviso para confirmar o e-mail, a verificação em duas etapas no login e a área "Minha conta" (dados, senha, sessões abertas, verificação em duas etapas e exclusão da conta). Os reportes entram nas próximas sprints.
 
 ## Sumário
 
@@ -51,6 +51,7 @@ flowchart LR
 | Navegação           | go_router 18                                             |
 | HTTP                | Dio 5.11                                                 |
 | Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)   |
+| Versão do app       | `package_info_plus` 10.2.2, para o `User-Agent`          |
 | Idioma              | pt-BR, com `flutter_localizations` e `intl`              |
 | Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)    |
 | Testes              | `flutter_test`, `mocktail` e `integration_test`          |
@@ -144,6 +145,9 @@ O app é do cidadão: só entra um **Client** (RM01). O SuperAdm do seed do back
 
 3. **Esqueceu a senha?** O **Esqueci minha senha**, no login, manda o link para criar uma senha nova, que também aparece no Mailpit. A página `/redefinir-senha` do painel ainda não existe: defina a senha nova pela seção 6 do `api.http` (`POST /api/password-resets/confirm`, com o `token` e a `password`) e entre com ela.
 4. O app guarda a sessão: na próxima abertura, ele vai direto à tela inicial. Para voltar ao login, use o **Sair**.
+5. **Minha conta.** O ícone da conta, na barra da tela inicial, abre os dados e as ações da conta: editar o nome, o telefone e a data de nascimento, trocar a senha, ver e encerrar as sessões abertas, ligar a verificação em duas etapas e excluir a conta.
+   - **Verificação em duas etapas.** Ela exige o e-mail confirmado (passo 2). Com ela ativa, o login pede um código de 6 dígitos, que chega no Mailpit, no e-mail "Seu código de acesso ao ReportaAi Cm".
+   - **Senha atual errada.** A troca de senha, a verificação e a exclusão mostram "Senha atual incorreta." no campo. Se o app voltar ao login com "Sua sessão expirou" nessas telas, a API está sem a T8 da sprint 4 (a senha errada respondia 401): atualize o backend.
 
 Sem o app, o mesmo cadastro pela API cria a Maria da Silva da seção 4 do `api.http` (`maria.silva@reportaai.local` e `SenhaForte123`):
 
@@ -162,8 +166,9 @@ curl -X POST http://localhost:3000/api/clients \
 | O login ou o cadastro mostra "Muitas tentativas. Tente de novo em N s." | Mais de 20 requisições por minuto do mesmo IP (RN18)                                                       | Espere a contagem: o botão volta sozinho                            |
 | A abertura mostra "Não foi possível abrir a sua conta"                  | Há uma sessão guardada, e a API não respondeu                                                              | Suba a API e toque em "Tentar de novo"                              |
 | O app volta ao login com "Sua sessão expirou. Entre de novo."           | A sessão acabou na API: 7 dias sem abrir o app, o Client inativado ou a sessão encerrada em outro aparelho | Entre de novo                                                       |
+| O login pede o código, e o e-mail não chega                             | O Mailpit está fora do ar, ou o código saiu há menos de 1 minuto (um por minuto)                           | Confira o Mailpit e toque em "Enviar outro código" depois da espera |
 
-Como o login, o cadastro, a sessão e o redirect funcionam por dentro está no [docs/AUTH.md](docs/AUTH.md).
+Como o login, o cadastro, a segunda etapa, a "Minha conta", a sessão e o redirect funcionam por dentro está no [docs/AUTH.md](docs/AUTH.md).
 
 ## Variáveis de ambiente
 
@@ -250,16 +255,16 @@ Cada funcionalidade é uma pasta independente, dividida em camadas. A regra de d
 
 ## Documentação
 
-| Documento                                                                                        | Conteúdo                                                                                                                                                                                            |
-| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                                     | Camadas, regra de dependência, Riverpod, rede e erros da API, navegação, tema, nomes e como criar uma feature                                                                                       |
-| [docs/AUTH.md](docs/AUTH.md)                                                                     | Login, sessão e acesso: o SDK do SuperTokens, o `AuthController`, o redirect, o cadastro, o "Esqueci minha senha", a confirmação do e-mail, as regras RM01 a RM14 e como criar uma tela autenticada |
-| [docs/TESTING.md](docs/TESTING.md)                                                               | Tipos de teste, o que testar em cada camada, `pumpApp`, fakes, fluxos, acessibilidade, cobertura e integração                                                                                       |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                                                               | Git Flow, padrão de commits, Pull Requests e releases                                                                                                                                               |
-| [docs/sprints/sprint-3-configuracao.md](docs/sprints/sprint-3-configuracao.md)                   | Plano da sprint 3: configuração e arquitetura do app                                                                                                                                                |
-| [docs/sprints/sprint-3-login.md](docs/sprints/sprint-3-login.md)                                 | Plano da sprint 3: login e tela inicial (RM01 a RM10)                                                                                                                                               |
-| [docs/sprints/sprint-4-acesso.md](docs/sprints/sprint-4-acesso.md)                               | Plano da sprint 4: cadastro, recuperação de acesso e "Minha conta" (RM11 a RM19)                                                                                                                    |
-| [README do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend#readme) | A API: instalação, rotas, autenticação e regras de negócio                                                                                                                                          |
+| Documento                                                                                        | Conteúdo                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                                     | Camadas, regra de dependência, Riverpod, rede e erros da API, navegação, tema, nomes e como criar uma feature                                                                                                                         |
+| [docs/AUTH.md](docs/AUTH.md)                                                                     | Login, sessão e acesso: o SDK do SuperTokens, o `AuthController`, o redirect, o cadastro, o "Esqueci minha senha", a confirmação do e-mail, a segunda etapa, a "Minha conta", as regras RM01 a RM19 e como criar uma tela autenticada |
+| [docs/TESTING.md](docs/TESTING.md)                                                               | Tipos de teste, o que testar em cada camada, `pumpApp`, fakes, fluxos, acessibilidade, cobertura e integração                                                                                                                         |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                                               | Git Flow, padrão de commits, Pull Requests e releases                                                                                                                                                                                 |
+| [docs/sprints/sprint-3-configuracao.md](docs/sprints/sprint-3-configuracao.md)                   | Plano da sprint 3: configuração e arquitetura do app                                                                                                                                                                                  |
+| [docs/sprints/sprint-3-login.md](docs/sprints/sprint-3-login.md)                                 | Plano da sprint 3: login e tela inicial (RM01 a RM10)                                                                                                                                                                                 |
+| [docs/sprints/sprint-4-acesso.md](docs/sprints/sprint-4-acesso.md)                               | Plano da sprint 4: cadastro, recuperação de acesso e "Minha conta" (RM11 a RM19)                                                                                                                                                      |
+| [README do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend#readme) | A API: instalação, rotas, autenticação e regras de negócio                                                                                                                                                                            |
 
 ## Contribuindo
 

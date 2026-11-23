@@ -19,12 +19,13 @@ final NotifierProvider<AuthController, AuthState> authControllerProvider = Notif
   AuthController.new,
 );
 
-/// A fonte da verdade do login: confere a sessão na abertura, entra, atualiza o perfil, sai e
-/// acompanha o fim da sessão. As telas chamam as ações e ouvem o [AuthState], e o redirect das
-/// rotas leva à tela certa.
+/// A fonte da verdade do login: confere a sessão na abertura, entra, conclui a segunda etapa,
+/// atualiza o perfil, sai, exclui a conta e acompanha o fim da sessão. As telas chamam as ações e
+/// ouvem o [AuthState], e o redirect das rotas leva à tela certa.
 ///
-/// Depois que existe uma sessão, na abertura ou no login, os passos são sempre os mesmos: a
-/// segunda etapa pendente (RM08), o `GET /api/users/me` e o papel CLIENT (RM01).
+/// Depois que existe uma sessão, na abertura, no login ou depois do código da segunda etapa, os
+/// passos são sempre os mesmos: a segunda etapa pendente (RM18), o `GET /api/users/me` e o papel
+/// CLIENT (RM01).
 final class AuthController extends Notifier<AuthState> {
   late AuthRepository _auth;
   late ProfileRepository _profile;
@@ -33,8 +34,9 @@ final class AuthController extends Notifier<AuthState> {
   /// o resultado se nada mudou o estado enquanto ela esperava a API.
   int _operation = 0;
 
-  /// Se o próprio controller está encerrando a sessão que não pode entrar (RM01 e RM08). O evento
-  /// dessa saída é ignorado: quem guarda o motivo é a operação, no próximo estado.
+  /// Se o próprio controller está encerrando a sessão, a que não pode entrar (RM01) ou a da conta
+  /// excluída (RM17). Os eventos dessa saída são ignorados: quem guarda o motivo é a operação, no
+  /// próximo estado.
   bool _isLeaving = false;
 
   /// Começa conferindo a sessão guardada: o app abre na tela de abertura.
@@ -71,6 +73,18 @@ final class AuthController extends Notifier<AuthState> {
     return result;
   }
 
+  /// "Confirmar" da tela do código: conclui o login com o [code] da segunda etapa (RM18) e segue
+  /// para o perfil, como depois do login. Ignorado sem a sessão pendente.
+  ///
+  /// Com o código errado ou vencido, lança a `BusinessRuleException` da API, e a sessão continua
+  /// pendente. Sem conexão, lança a `NetworkException`.
+  Future<void> verifySecondFactor(String code) async {
+    if (state is! AuthSecondFactorPending) return;
+
+    await _auth.verifyLoginCode(code);
+    await _settle(_enter);
+  }
+
   /// "Puxar para atualizar" da tela inicial: busca o perfil de novo (ex.: depois de o Client
   /// confirmar o e-mail no navegador), com as mesmas conferências da entrada. Sem rede ou com a
   /// API fora do ar, lança a `ApiException`, e o estado continua com o perfil que já estava na
@@ -91,12 +105,36 @@ final class AuthController extends Notifier<AuthState> {
     if (operation == _operation) _setState(next);
   }
 
-  /// "Sair": encerra a sessão na API e volta ao login, sem aviso. Sem conexão, lança a
-  /// `NetworkException`, e o usuário continua logado (RM10).
+  /// Troca o perfil guardado pelo [profile] que a API devolveu depois de uma mudança, como a
+  /// edição dos dados e a verificação em duas etapas: as telas mostram os dados novos sem buscar o
+  /// perfil de novo. Ignorado sem o Client dentro.
+  void replaceProfile(UserProfile profile) {
+    if (state is AuthAuthenticated) _setState(AuthAuthenticated(profile));
+  }
+
+  /// "Sair": encerra a sessão na API e volta ao login, sem aviso. Vale também na tela do código
+  /// da segunda etapa, com a sessão pendente. Sem conexão, lança a `NetworkException`, e o usuário
+  /// continua logado (RM10).
   Future<void> signOut() async {
     await _auth.signOut();
 
     _setState(const AuthUnauthenticated());
+  }
+
+  /// "Excluir minha conta", confirmada com a [password] atual (RM17): exclui a conta na API,
+  /// apaga a sessão do aparelho e volta ao login com o aviso da exclusão. Ignorado sem o Client
+  /// dentro.
+  ///
+  /// Com a senha incorreta, lança a `BusinessRuleException` da API, e nada muda. Sem conexão,
+  /// lança a `NetworkException`, e a conta continua.
+  Future<void> deleteAccount({required String password}) async {
+    if (state is! AuthAuthenticated) return;
+
+    await _profile.deleteAccount(password: password);
+    // A sessão já não existe na API: o SDK só apaga os tokens depois que o signout e a renovação
+    // são recusados, e avisa o fim da sessão como se ela tivesse vencido. O `_leave` ignora o
+    // aviso, e o motivo mostrado é o da exclusão, e não o da RM07.
+    await _settle(() => _leave(UnauthenticatedReason.accountDeleted));
   }
 
   /// O que mudou na sessão sem o app pedir. Um evento que não muda o estado atual é ignorado: o
@@ -105,14 +143,13 @@ final class AuthController extends Notifier<AuthState> {
   void _onSessionEvent(SessionEvent event) {
     final next = switch ((event, state)) {
       (_, AuthUnauthenticated()) => null,
+      // Quem está encerrando a sessão é a própria operação (RM01 e RM17), e ela guarda o motivo.
+      _ when _isLeaving => null,
       // A sessão que existia acabou, inclusive na abertura (ex.: o refresh token venceu com o app
       // fechado). A operação em andamento é descartada (RM07).
       (SessionEvent.expired, _) => const AuthUnauthenticated(
         reason: UnauthenticatedReason.sessionExpired,
       ),
-      // Quem saiu foi a própria operação (RM01 e RM08), na abertura ou ao atualizar o perfil, e
-      // ela guarda o motivo.
-      (SessionEvent.signedOut, _) when _isLeaving => null,
       (SessionEvent.signedOut, _) => const AuthUnauthenticated(),
     };
 
@@ -126,11 +163,10 @@ final class AuthController extends Notifier<AuthState> {
     return await _enter();
   }
 
-  /// Os passos depois que existe uma sessão: segunda etapa, perfil e papel.
+  /// Os passos depois que existe uma sessão: segunda etapa, perfil e papel. Com a sessão pendente
+  /// da segunda etapa, fica na tela do código, sem chamar o `GET /api/users/me` (RM18).
   Future<AuthState> _enter() async {
-    if (await _auth.isSecondFactorPending()) {
-      return await _leave(UnauthenticatedReason.secondFactorPending);
-    }
+    if (await _auth.isSecondFactorPending()) return const AuthSecondFactorPending();
 
     return await _loadProfile();
   }
@@ -141,8 +177,8 @@ final class AuthController extends Notifier<AuthState> {
     try {
       profile = await _profile.getMe();
     } on SecondFactorPendingException {
-      // A claim mudou entre a conferência e a chamada (ex.: a verificação foi ativada no meio).
-      return await _leave(UnauthenticatedReason.secondFactorPending);
+      // A API diz que falta a segunda etapa, mesmo que a claim lida no aparelho dissesse que não.
+      return const AuthSecondFactorPending();
     }
 
     if (profile.role != Role.client) return await _leave(UnauthenticatedReason.roleNotAllowed);
@@ -150,7 +186,7 @@ final class AuthController extends Notifier<AuthState> {
     return AuthAuthenticated(profile);
   }
 
-  /// Encerra a sessão que não pode entrar no app e volta ao login com o [reason].
+  /// Encerra a sessão que não pode continuar no app e volta ao login com o [reason].
   Future<AuthState> _leave(UnauthenticatedReason reason) async {
     _isLeaving = true;
     try {

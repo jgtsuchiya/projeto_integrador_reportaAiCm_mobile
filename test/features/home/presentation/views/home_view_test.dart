@@ -40,11 +40,14 @@ void main() {
 
     AuthState authState(WidgetTester tester) => tester.container().read(authControllerProvider);
 
-    testWidgets('deve mostrar o nome do app e o "Sair" na barra superior', (tester) async {
+    testWidgets('deve mostrar o nome do app, a "Minha conta" e o "Sair" na barra superior', (
+      tester,
+    ) async {
       await pumpView(tester);
 
       final appBar = find.byType(AppBar);
       expect(find.descendant(of: appBar, matching: find.text('ReportaAi Cm')), findsOneWidget);
+      expect(find.descendant(of: appBar, matching: find.byTooltip('Minha conta')), findsOneWidget);
       expect(find.descendant(of: appBar, matching: find.text('Sair')), findsOneWidget);
     });
 

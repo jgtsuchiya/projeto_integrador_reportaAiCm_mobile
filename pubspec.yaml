@@ -21,6 +21,9 @@ dependencies:
   material_ui: 1.7.0
   # Anotações em Dart puro (ex.: @immutable), que o domínio pode usar sem importar o Flutter.
   meta: 1.18.3
+  # A versão do app no User-Agent das chamadas à API, que a lista de sessões abertas mostra (ver
+  # docs/sprints/sprint-4-acesso.md). Só o main lê.
+  package_info_plus: 10.2.2
   # Sessão do SuperTokens (ver docs/sprints/sprint-3-login.md). Só o lib/core/auth/ importa.
   supertokens_flutter: 0.6.5
 

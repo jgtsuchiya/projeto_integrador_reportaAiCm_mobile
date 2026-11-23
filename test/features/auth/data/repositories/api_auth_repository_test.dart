@@ -255,6 +255,72 @@ void main() {
       });
     });
 
+    group('verifyLoginCode', () {
+      test('deve chamar o POST /api/mfa/verify com o código, sem os espaços', () async {
+        adapter.reply(204);
+
+        await sut.verifyLoginCode(' 042137 ');
+
+        final request = adapter.requests.single;
+        expect(request.method, 'POST');
+        expect(request.uri.path, '/api/mfa/verify');
+        expect(request.data, {'code': '042137'});
+      });
+
+      test('deve lançar a BusinessRuleException do código errado, com o campo', () async {
+        adapter.reply(
+          422,
+          body: {
+            'statusCode': 422,
+            'error': 'Unprocessable Entity',
+            'message': 'Código inválido ou expirado.',
+            'details': {'field': 'code'},
+          },
+        );
+
+        await expectLater(
+          sut.verifyLoginCode('000000'),
+          throwsA(
+            isA<BusinessRuleException>()
+                .having((error) => error.message, 'message', 'Código inválido ou expirado.')
+                .having((error) => error.field, 'field', 'code'),
+          ),
+        );
+      });
+
+      test('deve lançar a NetworkException sem conexão', () async {
+        adapter.failWith(DioExceptionType.connectionError);
+
+        await expectLater(sut.verifyLoginCode('042137'), throwsA(isA<NetworkException>()));
+      });
+    });
+
+    group('resendLoginCode', () {
+      test('deve chamar o POST /api/mfa/code, sem corpo', () async {
+        adapter.reply(204);
+
+        await sut.resendLoginCode();
+
+        final request = adapter.requests.single;
+        expect(request.method, 'POST');
+        expect(request.uri.path, '/api/mfa/code');
+        expect(request.data, isNull);
+      });
+
+      test('deve lançar a BusinessRuleException quando o último código saiu há pouco', () async {
+        adapter.reply(
+          422,
+          body: {
+            'statusCode': 422,
+            'error': 'Unprocessable Entity',
+            'message': 'Um e-mail acabou de ser enviado. Aguarde um minuto para pedir outro.',
+          },
+        );
+
+        await expectLater(sut.resendLoginCode(), throwsA(isA<BusinessRuleException>()));
+      });
+    });
+
     group('sessão', () {
       test('deve repassar o hasSession e o isSecondFactorPending do SessionManager', () async {
         session
@@ -328,7 +394,34 @@ void main() {
       expect(await api.run(sut.isSecondFactorPending), isFalse);
     });
 
-    test('deve ler a segunda etapa pendente da sessão aberta no login (RM08)', () async {
+    test('deve concluir a segunda etapa com o access token que volta no código certo', () async {
+      await api.signIn(
+        payload: {
+          secondFactorClaimKey: {'v': false, 't': 1},
+        },
+      );
+      expect(await api.run(sut.isSecondFactorPending), isTrue);
+      api.adapter.reply(
+        204,
+        headers: sessionHeaders(
+          accessToken: 'access-token-da-sessao-completa',
+          payload: {
+            secondFactorClaimKey: {'v': true, 't': 2},
+          },
+        ),
+      );
+
+      await sut.verifyLoginCode('042137');
+
+      expect(await api.run(sut.isSecondFactorPending), isFalse);
+      expect(
+        api.adapter.requests.last.headers['authorization'],
+        'Bearer ${FakeSessionApi.accessToken}',
+        reason: 'O código vai com a sessão pendente.',
+      );
+    });
+
+    test('deve ler a segunda etapa pendente da sessão aberta no login (RM18)', () async {
       api.adapter.reply(
         200,
         body: {'status': 'OK'},

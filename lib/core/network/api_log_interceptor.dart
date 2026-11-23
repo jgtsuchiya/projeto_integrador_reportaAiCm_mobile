@@ -9,7 +9,8 @@ import 'package:flutter/foundation.dart';
 ///
 /// - os headers de [sensitiveHeaders] saem como `***`, na ida e na volta;
 /// - o corpo das rotas de `/api/auth` (login, renovação e saída) não aparece;
-/// - nos outros corpos e na query, os campos de [sensitiveFields] saem como `***`.
+/// - nos outros corpos e na query, os campos de [sensitiveFields] saem como `***`, como o IP e o
+///   `User-Agent` de cada sessão aberta.
 final class ApiLogInterceptor extends Interceptor {
   new({void Function(String message)? log}) : _log = log ?? debugPrint;
 
@@ -26,7 +27,8 @@ final class ApiLogInterceptor extends Interceptor {
     'set-cookie',
   };
 
-  /// Comparados sem diferenciar maiúsculas de minúsculas.
+  /// Comparados sem diferenciar maiúsculas de minúsculas. O `ipAddress` e o `userAgent` são os
+  /// da lista de sessões abertas, que dizem de onde a conta entrou.
   static const sensitiveFields = {
     'password',
     'currentpassword',
@@ -34,6 +36,8 @@ final class ApiLogInterceptor extends Interceptor {
     'token',
     'code',
     'cpf',
+    'ipaddress',
+    'useragent',
   };
 
   static const _maxBodyLength = 2000;

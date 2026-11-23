@@ -8,8 +8,9 @@ import 'fake_session_manager.dart';
 /// Fake do [AuthRepository], escrito à mão como o `FakeIdentityProvider` do backend. Cada teste
 /// define o resultado do próximo login e confere os logins feitos em [signInCalls].
 ///
-/// A sessão fica no [session]: o login com sucesso a abre, e o [hasSession], o
-/// [isSecondFactorPending] e o [signOut] vão para ela, como no `ApiAuthRepository`. Para o
+/// A sessão fica no [session]: o login com sucesso a abre, o código certo da segunda etapa a
+/// completa, e o [hasSession], o [isSecondFactorPending] e o [signOut] vão para ela, como no
+/// `ApiAuthRepository`. Para o
 /// teste que também ouve os eventos da sessão, passe o mesmo `FakeSessionManager` ao
 /// `sessionManagerProvider`.
 final class FakeAuthRepository implements AuthRepository {
@@ -37,6 +38,21 @@ final class FakeAuthRepository implements AuthRepository {
 
   /// O e-mail de cada "Esqueci minha senha", na ordem, como foi digitado.
   final passwordResetCalls = <String>[];
+
+  /// Lançado na próxima conferência do código da segunda etapa, como a `BusinessRuleException`
+  /// do código errado. Sem ele, o código conclui o login: a sessão deixa de estar pendente.
+  Exception? verifyLoginCodeError;
+
+  /// Enquanto não é completado, a conferência do código fica pendente.
+  Completer<void>? verifyLoginCodePending;
+
+  /// Os códigos conferidos, na ordem.
+  final verifyLoginCodeCalls = <String>[];
+
+  /// Lançado no próximo reenvio do código, como a `BusinessRuleException` do envio recente.
+  Exception? resendLoginCodeError;
+
+  int resendLoginCodeCalls = 0;
 
   @override
   Future<SignInResult> signIn({required String email, required String password}) async {
@@ -66,6 +82,27 @@ final class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<bool> isSecondFactorPending() => session.isSecondFactorPending();
+
+  @override
+  Future<void> verifyLoginCode(String code) async {
+    verifyLoginCodeCalls.add(code);
+
+    final pending = verifyLoginCodePending;
+    if (pending != null) await pending.future;
+
+    final error = verifyLoginCodeError;
+    if (error != null) throw error;
+
+    session.secondFactorPending = false;
+  }
+
+  @override
+  Future<void> resendLoginCode() async {
+    resendLoginCodeCalls++;
+
+    final error = resendLoginCodeError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> requestPasswordReset(String email) async {

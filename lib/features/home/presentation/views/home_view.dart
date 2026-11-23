@@ -2,18 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:reportaai_cm/app/routes.dart';
 import 'package:reportaai_cm/core/widgets/scrollable_center.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_state.dart';
 import 'package:reportaai_cm/features/auth/presentation/widgets/email_verification_notice.dart';
 import 'package:reportaai_cm/features/auth/presentation/widgets/sign_out_button.dart';
 import 'package:reportaai_cm/features/home/presentation/view_models/home_view_model.dart';
-import 'package:reportaai_cm/features/home/presentation/widgets/profile_card.dart';
+import 'package:reportaai_cm/features/profile/presentation/widgets/profile_card.dart';
 
 /// Tela inicial (`/inicio`), a primeira com a sessão aberta: a saudação, o aviso do e-mail ainda
-/// não confirmado (RM14), os dados do usuário e o "Sair". O redirect só abre esta tela com o
-/// Client dentro.
+/// não confirmado (RM14), os dados do usuário, a "Minha conta" e o "Sair". O redirect só abre
+/// esta tela com o Client dentro.
 ///
 /// Puxar para atualizar busca o perfil de novo. Se a atualização falhar, os dados já mostrados
 /// continuam na tela, com o aviso do erro em cima deles.
@@ -43,7 +45,18 @@ class _HomeViewState extends ConsumerState<HomeView> {
     final refreshError = ref.watch(homeViewModelProvider).refreshError;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ReportaAi Cm'), actions: const [SignOutButton()]),
+      appBar: AppBar(
+        title: const Text('ReportaAi Cm'),
+        actions: [
+          // Por cima da tela inicial: o "voltar" volta para ela.
+          IconButton(
+            onPressed: () => unawaited(context.push(AppRoutes.account)),
+            tooltip: 'Minha conta',
+            icon: const Icon(Icons.account_circle_outlined),
+          ),
+          const SignOutButton(),
+        ],
+      ),
       body: SafeArea(
         child: profile == null
             ? const SizedBox.shrink()
