@@ -44,7 +44,7 @@ integration_test/
 | `presentation` (ViewModel)  | Teste unitário com o `ProviderContainer.test` e o fake do repositório: cada estado e cada ação.                                           |
 | `presentation` (controller) | Teste unitário com o `ProviderContainer.test` e o `AuthFakes`: cada transição de estado, os eventos da sessão e as operações atropeladas. |
 | `presentation` (View)       | Teste de widget com o `pumpApp` e o fake do repositório: **cada estado da tela** (carregando, erro e sucesso) e a fonte em 200%.          |
-| `core/widgets`              | Teste de widget de cada componente, com as verificações de acessibilidade nos temas claro e escuro.                                       |
+| `core/widgets`              | Teste de widget de cada componente, com as verificações de acessibilidade.                                                                |
 | `core/network`              | Teste unitário da conversão de cada status com o `FakeHttpAdapter`, e do log, que não pode mostrar nenhum token.                          |
 | `core/auth`                 | Teste unitário com o SDK do SuperTokens de verdade e o `FakeSessionApi` no lugar da API: a sessão guardada, a renovação e os eventos.     |
 
@@ -86,20 +86,20 @@ testWidgets('deve mostrar a mensagem clara com a API desligada', (tester) async 
 });
 ```
 
-| Helper                                                    | Para que serve                                                                                                                                                                                                                                       |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tester.pumpApp(widget, overrides:, config:, themeMode:)` | Uma tela ou um componente, sem as rotas. `themeMode: ThemeMode.dark` testa o tema escuro                                                                                                                                                             |
-| `tester.pumpRouter(router, overrides:)`                   | O app com as rotas de um `GoRouter` (ex.: o `createRouter()`)                                                                                                                                                                                        |
-| `tester.pumpPushed(screen, overrides:, beforePush:)`      | A tela aberta com o `push` por cima de uma tela de baixo (`screenBelow`), para o `context.pop()` dela funcionar. O `beforePush: AuthFakes.startAuth` cria o `AuthController` antes, como o router do app, para a tela que lê o perfil no `initState` |
-| `tester.pumpWholeApp(overrides:, observers:)`             | O app inteiro, como o `main`: as rotas, as telas e o `AuthController` ([fluxos](#fluxos-do-app-inteiro))                                                                                                                                             |
-| `tester.usePhoneScreen(textScale: 2)`                     | Tela de celular pequeno (360 x 640) com a fonte do sistema em 200%. Volta ao padrão no fim do teste                                                                                                                                                  |
-| `tester.signOutAndConfirm()`                              | Toca no "Sair" da tela e confirma no diálogo, como o usuário. Termina com a saída começada: o teste decide quanto esperar                                                                                                                            |
-| `openWholeApp(tester, fakes)`                             | O `pumpWholeApp` com os `AuthFakes`, devolvendo as rotas por onde o app passa ([fluxos](#fluxos-do-app-inteiro))                                                                                                                                     |
-| `expectBackClosesTheApp(tester)` e `appRouter(tester)`    | Confere que o "voltar" do Android fecha o app, e o `GoRouter` do app montado                                                                                                                                                                         |
-| `tester.leaveAndComeBack()`                               | O app vai para o segundo plano e volta, passando pelos estados do meio ([cuidados](#cuidados))                                                                                                                                                       |
-| `confirmSignOutButton`                                    | O "Sair" de dentro do diálogo de confirmação, que não se confunde com o botão que abre o diálogo                                                                                                                                                     |
-| `tester.container()`                                      | O `ProviderContainer` do app montado, do próprio Riverpod: `tester.container().read(authControllerProvider)`                                                                                                                                         |
-| `testConfig`                                              | A configuração de teste, com a API em `http://localhost:3000`                                                                                                                                                                                        |
+| Helper                                                 | Para que serve                                                                                                                                                                                                                                       |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tester.pumpApp(widget, overrides:, config:)`          | Uma tela ou um componente, com o tema do app (só claro) e sem as rotas                                                                                                                                                                               |
+| `tester.pumpRouter(router, overrides:)`                | O app com as rotas de um `GoRouter` (ex.: o `createRouter()`)                                                                                                                                                                                        |
+| `tester.pumpPushed(screen, overrides:, beforePush:)`   | A tela aberta com o `push` por cima de uma tela de baixo (`screenBelow`), para o `context.pop()` dela funcionar. O `beforePush: AuthFakes.startAuth` cria o `AuthController` antes, como o router do app, para a tela que lê o perfil no `initState` |
+| `tester.pumpWholeApp(overrides:, observers:)`          | O app inteiro, como o `main`: as rotas, as telas e o `AuthController` ([fluxos](#fluxos-do-app-inteiro))                                                                                                                                             |
+| `tester.usePhoneScreen(textScale: 2)`                  | Tela de celular pequeno (360 x 640) com a fonte do sistema em 200%. Volta ao padrão no fim do teste                                                                                                                                                  |
+| `tester.signOutAndConfirm()`                           | Toca no "Sair" da tela e confirma no diálogo, como o usuário. Termina com a saída começada: o teste decide quanto esperar                                                                                                                            |
+| `openWholeApp(tester, fakes)`                          | O `pumpWholeApp` com os `AuthFakes`, devolvendo as rotas por onde o app passa ([fluxos](#fluxos-do-app-inteiro))                                                                                                                                     |
+| `expectBackClosesTheApp(tester)` e `appRouter(tester)` | Confere que o "voltar" do Android fecha o app, e o `GoRouter` do app montado                                                                                                                                                                         |
+| `tester.leaveAndComeBack()`                            | O app vai para o segundo plano e volta, passando pelos estados do meio ([cuidados](#cuidados))                                                                                                                                                       |
+| `confirmSignOutButton`                                 | O "Sair" de dentro do diálogo de confirmação, que não se confunde com o botão que abre o diálogo                                                                                                                                                     |
+| `tester.container()`                                   | O `ProviderContainer` do app montado, do próprio Riverpod: `tester.container().read(authControllerProvider)`                                                                                                                                         |
+| `testConfig`                                           | A configuração de teste, com a API em `http://localhost:3000`                                                                                                                                                                                        |
 
 ## Fakes e mocks
 
@@ -199,7 +199,7 @@ testWidgets('deve ir direto à tela inicial, sem passar pelo login (RM06)', (tes
 
 ## Acessibilidade e fonte grande
 
-Os testes dos componentes e das telas passam pelas verificações de acessibilidade do Flutter, nos temas claro e escuro:
+Os testes dos componentes e das telas passam pelas verificações de acessibilidade do Flutter, no tema do app, que é só claro:
 
 ```dart
 final semantics = tester.ensureSemantics();
@@ -210,6 +210,8 @@ await expectLater(tester, meetsGuideline(labeledTapTargetGuideline)); // botão 
 await expectLater(tester, meetsGuideline(textContrastGuideline));     // contraste do texto
 semantics.dispose();
 ```
+
+As cores do tema têm testes próprios, em [`test/app/theme/`](../test/app/theme). O `app_theme_test.dart` confere o contraste de cada par do tema (o texto ou o ícone sobre o fundo), com no mínimo 4,5:1: uma troca de cor no `AppColors` que quebre a leitura de um par faz o teste falhar, com o nome do par e o contraste. O `app_colors_test.dart` recusa uma cor fixa (`Color(0x...)`, `Color.fromARGB`, `Color.fromRGBO` ou `Colors.*`) fora de `lib/app/theme/`, com o arquivo e a linha. Os dois conferem a própria regra, como o teste de arquitetura: o amarelo como texto e o `Colors.red` numa tela têm de ser acusados.
 
 Toda tela tem um teste com a fonte em 200%: `tester.usePhoneScreen(textScale: 2)` e, depois de montar, `expect(tester.takeException(), isNull)`, que falha se algum texto estourar o espaço.
 

@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:reportaai_cm/app/theme/app_theme.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_limits.dart';
 import 'package:reportaai_cm/features/reports/presentation/view_models/report_location.dart';
 
@@ -196,7 +197,11 @@ class ReportLocationCard extends StatelessWidget {
               Align(
                 alignment: AlignmentDirectional.centerEnd,
                 child: isBlocking
-                    ? FilledButton.tonal(onPressed: onPressed, child: Text(label))
+                    ? FilledButton.tonal(
+                        onPressed: onPressed,
+                        style: AppTheme.tonalButtonStyle,
+                        child: Text(label),
+                      )
                     : TextButton(onPressed: onPressed, child: Text(label)),
               ),
             ],

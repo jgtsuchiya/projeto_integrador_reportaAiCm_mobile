@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:reportaai_cm/app/theme/app_theme.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_state.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/email_verification_controller.dart';
@@ -156,6 +157,7 @@ class _ResendButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FilledButton.tonalIcon(
       onPressed: isSending ? null : onPressed,
+      style: AppTheme.tonalButtonStyle,
       icon: isSending
           ? const SizedBox.square(
               dimension: 18,

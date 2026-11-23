@@ -263,33 +263,25 @@ void main() {
       expect(_inItem('Em acompanhamento'), findsOneWidget);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        reports.repository.mine = [
-          sampleReportWith(id: 'a'),
-          sampleReportWith(id: 'b', status: ReportStatus.confirmed),
-          sampleReportWith(id: 'c', status: ReportStatus.rejected),
-          sampleReportWith(id: 'd', status: ReportStatus.unknown),
-        ];
-        tester.view
-          ..physicalSize = const Size(800, 2400)
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        final semantics = tester.ensureSemantics();
-        await tester.pumpApp(
-          const MyReportsView(),
-          overrides: reports.overrides,
-          themeMode: themeMode,
-        );
-        await tester.pumpAndSettle();
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      reports.repository.mine = [
+        sampleReportWith(id: 'a'),
+        sampleReportWith(id: 'b', status: ReportStatus.confirmed),
+        sampleReportWith(id: 'c', status: ReportStatus.rejected),
+        sampleReportWith(id: 'd', status: ReportStatus.unknown),
+      ];
+      tester.view
+        ..physicalSize = const Size(800, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final semantics = tester.ensureSemantics();
+      await tester.pumpApp(const MyReportsView(), overrides: reports.overrides);
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

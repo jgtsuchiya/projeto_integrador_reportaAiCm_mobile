@@ -14,9 +14,8 @@ class App extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: appTitle,
+      // Só o tema claro: sem o darkTheme, o app fica claro mesmo com o modo escuro do aparelho.
       theme: AppTheme.light,
-      // Sem themeMode, o padrão: claro ou escuro, junto com o sistema.
-      darkTheme: AppTheme.dark,
       locale: appLocale,
       supportedLocales: const [appLocale],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
