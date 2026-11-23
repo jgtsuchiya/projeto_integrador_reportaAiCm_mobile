@@ -328,28 +328,23 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        final semantics = tester.ensureSemantics();
-        await tester.pumpApp(
-          Scaffold(
-            body: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ReportVoteBar(report: report),
-            ),
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpApp(
+        Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: ReportVoteBar(report: report),
           ),
-          overrides: [...auth.overrides, ...reports.overrides],
-          themeMode: themeMode,
-        );
-        await tester.pumpAndSettle();
+        ),
+        overrides: [...auth.overrides, ...reports.overrides],
+      );
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

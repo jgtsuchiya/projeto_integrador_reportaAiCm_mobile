@@ -11,11 +11,8 @@ void main() {
     setUp(() => password = TextEditingController());
     tearDown(() => password.dispose());
 
-    Future<void> pumpRules(WidgetTester tester, {ThemeMode themeMode = ThemeMode.light}) =>
-        tester.pumpApp(
-          Scaffold(body: PasswordRules(password: password)),
-          themeMode: themeMode,
-        );
+    Future<void> pumpRules(WidgetTester tester) =>
+        tester.pumpApp(Scaffold(body: PasswordRules(password: password)));
 
     Finder ruleWithState(String label, {required bool isMet}) =>
         find.bySemanticsLabel('$label: ${isMet ? 'cumprido' : 'ainda não cumprido'}');
@@ -55,18 +52,13 @@ void main() {
       semantics.dispose();
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets(
-        'deve ter o contraste do texto, com e sem os itens cumpridos (${themeMode.name})',
-        (tester) async {
-          final semantics = tester.ensureSemantics();
-          password.text = 'abc';
-          await pumpRules(tester, themeMode: themeMode);
+    testWidgets('deve ter o contraste do texto, com e sem os itens cumpridos', (tester) async {
+      final semantics = tester.ensureSemantics();
+      password.text = 'abc';
+      await pumpRules(tester);
 
-          await expectLater(tester, meetsGuideline(textContrastGuideline));
-          semantics.dispose();
-        },
-      );
-    }
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

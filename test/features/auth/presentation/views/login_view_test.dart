@@ -27,16 +27,8 @@ void main() {
     setUp(() => fakes = AuthFakes());
 
     /// Abre o login, depois da abertura: sem a sessão guardada, ou com o motivo de ter voltado.
-    Future<void> pumpView(
-      WidgetTester tester, {
-      bool showDiagnostics = false,
-      ThemeMode themeMode = ThemeMode.light,
-    }) async {
-      await tester.pumpApp(
-        LoginView(showDiagnostics: showDiagnostics),
-        overrides: fakes.overrides,
-        themeMode: themeMode,
-      );
+    Future<void> pumpView(WidgetTester tester, {bool showDiagnostics = false}) async {
+      await tester.pumpApp(LoginView(showDiagnostics: showDiagnostics), overrides: fakes.overrides);
       await tester.pump();
     }
 
@@ -441,21 +433,17 @@ void main() {
       expect(find.text(SignInFieldError.emailRequiredMessage), findsOneWidget);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        fakes.session.hasStoredSession = true;
-        fakes.profile.error = const UnauthorizedException();
-        final semantics = tester.ensureSemantics();
-        await pumpView(tester, themeMode: themeMode, showDiagnostics: true);
-        await signIn(tester);
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      fakes.session.hasStoredSession = true;
+      fakes.profile.error = const UnauthorizedException();
+      final semantics = tester.ensureSemantics();
+      await pumpView(tester, showDiagnostics: true);
+      await signIn(tester);
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:reportaai_cm/app/app.dart';
+import 'package:reportaai_cm/app/theme/app_theme.dart';
+import 'package:reportaai_cm/app/theme/success_colors.dart';
 import 'package:reportaai_cm/features/auth/presentation/views/login_view.dart';
 
 import '../support/auth_fakes.dart';
@@ -22,17 +24,31 @@ void main() {
       expect(MaterialLocalizations.of(context).cancelButtonLabel, 'Cancelar');
     });
 
-    testWidgets('deve usar o tema claro com o sistema no modo claro', (tester) async {
-      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
-      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-
+    testWidgets('deve usar o tema do app, com as cores da UTFPR', (tester) async {
       final context = await pumpWholeApp(tester);
+      final theme = Theme.of(context);
 
-      expect(Theme.of(context).brightness, Brightness.light);
-      expect(Theme.of(context).useMaterial3, isTrue);
+      expect(theme.useMaterial3, isTrue);
+      expect(theme.colorScheme, AppTheme.colorScheme);
+      expect(theme.extension<SuccessColors>(), AppTheme.successColors);
     });
 
-    testWidgets('deve trocar para o tema escuro junto com o sistema', (tester) async {
+    for (final brightness in Brightness.values) {
+      testWidgets('deve ficar no tema claro com o sistema no modo ${brightness.name}', (
+        tester,
+      ) async {
+        tester.platformDispatcher.platformBrightnessTestValue = brightness;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+        final context = await pumpWholeApp(tester);
+
+        expect(Theme.of(context).brightness, Brightness.light);
+      });
+    }
+
+    testWidgets('deve continuar no tema claro quando o sistema troca para o modo escuro', (
+      tester,
+    ) async {
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
       addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
       await pumpWholeApp(tester);
@@ -40,7 +56,7 @@ void main() {
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
       await tester.pumpAndSettle();
 
-      expect(Theme.of(tester.element(find.byType(LoginView))).brightness, Brightness.dark);
+      expect(Theme.of(tester.element(find.byType(LoginView))).brightness, Brightness.light);
     });
   });
 

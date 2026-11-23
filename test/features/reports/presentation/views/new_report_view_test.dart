@@ -447,27 +447,22 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        tester.view
-          ..physicalSize = const Size(800, 2400)
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        final semantics = tester.ensureSemantics();
-        await tester.pumpApp(
-          const NewReportView(),
-          overrides: [...auth.overrides, ...reports.overrides],
-          themeMode: themeMode,
-        );
-        await tester.pumpAndSettle();
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      tester.view
+        ..physicalSize = const Size(800, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final semantics = tester.ensureSemantics();
+      await tester.pumpApp(
+        const NewReportView(),
+        overrides: [...auth.overrides, ...reports.overrides],
+      );
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

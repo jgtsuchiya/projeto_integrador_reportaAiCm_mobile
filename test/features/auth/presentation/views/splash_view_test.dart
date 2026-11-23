@@ -23,8 +23,8 @@ void main() {
     setUp(() => fakes = AuthFakes(signedIn: true));
 
     /// Abre a tela de abertura: o AuthController confere a sessão guardada.
-    Future<void> pumpView(WidgetTester tester, {ThemeMode themeMode = ThemeMode.light}) async {
-      await tester.pumpApp(const SplashView(), overrides: fakes.overrides, themeMode: themeMode);
+    Future<void> pumpView(WidgetTester tester) async {
+      await tester.pumpApp(const SplashView(), overrides: fakes.overrides);
       await tester.pump();
     }
 
@@ -114,19 +114,15 @@ void main() {
       });
     }
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade no erro (${themeMode.name})', (
-        tester,
-      ) async {
-        fakes.profile.error = const NetworkException();
-        final semantics = tester.ensureSemantics();
-        await pumpView(tester, themeMode: themeMode);
+    testWidgets('deve passar nas verificações de acessibilidade no erro', (tester) async {
+      fakes.profile.error = const NetworkException();
+      final semantics = tester.ensureSemantics();
+      await pumpView(tester);
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

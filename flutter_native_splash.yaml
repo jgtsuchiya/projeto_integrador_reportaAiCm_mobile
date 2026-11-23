@@ -1,4 +1,5 @@
-# Splash provisório, até a identidade visual: o pino do ícone sobre a cor-base (AppColors.seed).
+# Splash do app: o pino do ícone sobre o laranja do logo, o mesmo fundo do ícone adaptativo. O
+# laranja é só do logo, e não do tema, que usa as cores da UTFPR (lib/app/theme/app_colors.dart).
 # Para trocar, substitua as imagens de assets/branding/ e rode:
 # fvm dart run flutter_native_splash:create
 flutter_native_splash:

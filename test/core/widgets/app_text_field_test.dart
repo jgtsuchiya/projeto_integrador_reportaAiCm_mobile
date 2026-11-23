@@ -6,7 +6,7 @@ import '../../support/pump_app.dart';
 
 void main() {
   group('AppTextField', () {
-    Future<void> pumpField(WidgetTester tester, Widget field, {ThemeMode? themeMode}) {
+    Future<void> pumpField(WidgetTester tester, Widget field) {
       return tester.pumpApp(
         Scaffold(
           body: Padding(
@@ -14,7 +14,6 @@ void main() {
             child: Form(child: field),
           ),
         ),
-        themeMode: themeMode ?? ThemeMode.light,
       );
     }
 
@@ -97,21 +96,16 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpField(
         tester,
-      ) async {
-        final semantics = tester.ensureSemantics();
-        await pumpField(
-          tester,
-          const AppTextField(label: 'E-mail', errorText: 'Formato de e-mail inválido.'),
-          themeMode: themeMode,
-        );
+        const AppTextField(label: 'E-mail', errorText: 'Formato de e-mail inválido.'),
+      );
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

@@ -30,7 +30,7 @@ lib/
 │   ├── localization.dart        # pt-BR: o idioma do app e a preparação do intl
 │   ├── router.dart              # go_router: rotas e redirect a partir do estado de login
 │   ├── routes.dart              # caminhos das rotas e as rotas públicas (/cadastro, /esqueci-senha)
-│   └── theme/                   # cores e tema claro e escuro
+│   └── theme/                   # cores da UTFPR e o tema, só claro
 ├── core/                        # código transversal (o shared/ do backend)
 │   ├── auth/                    # SessionManager e o SDK do SuperTokens (o único lugar que o importa)
 │   ├── config/                  # AppConfig: a API_URL, validada na abertura
@@ -270,7 +270,24 @@ As rotas usam o **go_router**, com os caminhos em [`AppRoutes`](../lib/app/route
 
 ## Tema, idioma e componentes
 
-- **Tema** ([`app/theme/`](../lib/app/theme)): Material 3 com `ColorScheme.fromSeed`, a partir de uma cor provisória (`AppColors.seed`). Os modos claro e escuro seguem o sistema. Quando o protótipo existir, o tema muda só nessa pasta. O ícone e o splash usam a mesma cor ([README](../README.md#ícone-e-splash)).
+- **Tema** ([`app/theme/`](../lib/app/theme)): Material 3 com as cores da UTFPR, tiradas do portal [utfpr.edu.br](https://www.utfpr.edu.br/) ([`AppColors`](../lib/app/theme/app_colors.dart)): o amarelo `#FFBE00` e a tinta `#18181A`, com os cinzas, os azuis e o verde do portal. Só o tema claro: o app fica claro mesmo com o modo escuro ligado no aparelho. O `ColorScheme` sai do `ColorScheme.fromSeed` com o amarelo e a variante `monochrome`, que gera as superfícies e os contornos em cinza neutro e o vermelho padrão nos erros, e os papéis da marca são trocados pelas cores do portal. A origem de cada cor e o contraste de cada par estão no plano [sprints/cores-utfpr.md](sprints/cores-utfpr.md).
+
+| Papel                                  | Cor                                 | Onde aparece                                                                                         |
+| -------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `primary`                              | A tinta                             | Os ícones grandes das telas, os `TextButton`, o foco dos campos, as caixas de seleção e o carregando |
+| `primaryContainer`                     | O amarelo, com a tinta por cima     | O `FilledButton` (o botão principal, pelo `filledButtonTheme`), o botão flutuante e o "Em validação" |
+| `secondaryContainer`                   | O cinza-claro, com a tinta por cima | O `FilledButton.tonal` (com o `AppTheme.tonalButtonStyle`) e o filtro selecionado                    |
+| `tertiary` e `tertiaryContainer`       | Os azuis                            | Os avisos: o e-mail não confirmado e o reporte já aberto ali perto                                   |
+| `inversePrimary`                       | O amarelo                           | A ação do `SnackBar`, sobre o fundo escuro do aviso                                                  |
+| `SuccessColors` (uma `ThemeExtension`) | O verde                             | O "Confirmado", a regra da senha cumprida e o "ok" do diagnóstico                                    |
+| `error` e `errorContainer`             | O vermelho padrão do Material 3     | Os erros e o "Descartado"                                                                            |
+
+- **Regras das cores:**
+  - O amarelo **nunca** é cor de texto nem de ícone (1,58:1 sobre a superfície): é sempre um fundo, com a tinta por cima.
+  - As cores ficam só em `app/theme/`. As telas usam o `colorScheme`, a `SuccessColors.of(context)` e, no fundo da foto ampliada, o `AppColors.photoBackdrop`. O [`app_colors_test.dart`](../test/app/theme/app_colors_test.dart) recusa `Color(0x...)`, `Color.fromARGB`, `Color.fromRGBO` e `Colors.*` fora da pasta, e o [`app_theme_test.dart`](../test/app/theme/app_theme_test.dart) confere o contraste de cada par do tema (no mínimo 4,5:1). Com o manual de marca da UTFPR, a troca fica só no `AppColors`.
+  - O `filledButtonTheme` vale também para o `FilledButton.tonal`. Para o tonal ficar no cinza, e o amarelo marcar só a ação principal, passe o `style: AppTheme.tonalButtonStyle`.
+  - O ícone e o splash são o logo do app: o pino branco sobre o laranja `#E65100`, que não é cor do tema ([README](../README.md#ícone-e-splash)).
+
 - **Idioma:** só pt-BR, com `flutter_localizations` e `intl`. Os textos ficam direto no código, sem arquivos ARB, enquanto houver um idioma só.
 - **Formatadores** ([`core/utils/`](../lib/core/utils)): a API manda os dados crus, e a máscara é do app.
 
@@ -305,7 +322,7 @@ As rotas usam o **go_router**, com os caminhos em [`AppRoutes`](../lib/app/route
 | `LoadingIndicator` | Indicador de carregamento, com uma mensagem opcional                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `ScrollableCenter` | Centraliza o conteúdo e rola quando ele não cabe (ex.: fonte em 200%)                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
-- **Acessibilidade:** os botões têm pelo menos 48 dp de altura, e toda tela rola, para aguentar a fonte do sistema em 200% sem cortar texto. Os testes dos componentes passam pelas verificações do Flutter (`androidTapTargetGuideline`, `labeledTapTargetGuideline` e `textContrastGuideline`), nos dois temas.
+- **Acessibilidade:** os botões têm pelo menos 48 dp de altura, e toda tela rola, para aguentar a fonte do sistema em 200% sem cortar texto. Os testes dos componentes passam pelas verificações do Flutter (`androidTapTargetGuideline`, `labeledTapTargetGuideline` e `textContrastGuideline`), no tema do app.
 
 ## Convenções de nomenclatura
 

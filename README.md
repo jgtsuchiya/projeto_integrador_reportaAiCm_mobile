@@ -43,24 +43,24 @@ flowchart LR
 
 ## Stack
 
-| Camada              | Tecnologia                                               |
-| ------------------- | -------------------------------------------------------- |
-| Plataformas         | Android e iOS                                            |
-| Framework           | Flutter 3.47 (Dart 3.13), com a versão fixada pelo FVM   |
-| Interface           | Material 3 (`material_ui`), tema claro e escuro          |
-| Estado e injeção    | Riverpod 3.4 (`flutter_riverpod`), sem geração de código |
-| Navegação           | go_router 18                                             |
-| HTTP                | Dio 5.11                                                 |
-| Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)   |
-| Versão do app       | `package_info_plus` 10.2.2, para o `User-Agent`          |
-| Câmera              | `image_picker` 1.2.4, só a câmera (sem a galeria)        |
-| Tratamento da foto  | `flutter_image_compress` 2.5.1 (nativo)                  |
-| Localização         | `geolocator` 14.1.2                                      |
-| Idioma              | pt-BR, com `flutter_localizations` e `intl`              |
-| Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)    |
-| Testes              | `flutter_test`, `mocktail` e `integration_test`          |
-| Hooks e commits     | Husky, commitlint e lint-staged (os mesmos do backend)   |
-| Integração contínua | GitHub Actions                                           |
+| Camada              | Tecnologia                                                |
+| ------------------- | --------------------------------------------------------- |
+| Plataformas         | Android e iOS                                             |
+| Framework           | Flutter 3.47 (Dart 3.13), com a versão fixada pelo FVM    |
+| Interface           | Material 3 (`material_ui`), cores da UTFPR, só tema claro |
+| Estado e injeção    | Riverpod 3.4 (`flutter_riverpod`), sem geração de código  |
+| Navegação           | go_router 18                                              |
+| HTTP                | Dio 5.11                                                  |
+| Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)    |
+| Versão do app       | `package_info_plus` 10.2.2, para o `User-Agent`           |
+| Câmera              | `image_picker` 1.2.4, só a câmera (sem a galeria)         |
+| Tratamento da foto  | `flutter_image_compress` 2.5.1 (nativo)                   |
+| Localização         | `geolocator` 14.1.2                                       |
+| Idioma              | pt-BR, com `flutter_localizations` e `intl`               |
+| Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)     |
+| Testes              | `flutter_test`, `mocktail` e `integration_test`           |
+| Hooks e commits     | Husky, commitlint e lint-staged (os mesmos do backend)    |
+| Integração contínua | GitHub Actions                                            |
 
 Todas as dependências usam **versão exata** (sem `^`), no `pubspec.yaml` e no `package.json`, e o `pubspec.lock` é versionado.
 
@@ -240,7 +240,7 @@ Rode todos pelo FVM, para usar a versão do Flutter do projeto.
 
 ### Ícone e splash
 
-O ícone e o splash são provisórios: um pino de localização branco sobre a cor-base do tema. As imagens ficam em [assets/branding/](assets/branding), e a configuração dos geradores, em [flutter_launcher_icons.yaml](flutter_launcher_icons.yaml) e [flutter_native_splash.yaml](flutter_native_splash.yaml). Para trocar, substitua as imagens (e a cor, se mudar) e rode:
+O ícone e o splash são o logo do app: um pino de localização branco sobre o laranja `#E65100`. O laranja é só do logo: o tema usa as cores da UTFPR ([ARCHITECTURE.md](docs/ARCHITECTURE.md#tema-idioma-e-componentes)). As imagens ficam em [assets/branding/](assets/branding), e a configuração dos geradores, em [flutter_launcher_icons.yaml](flutter_launcher_icons.yaml) e [flutter_native_splash.yaml](flutter_native_splash.yaml). Para trocar, substitua as imagens (e a cor, se mudar) e rode:
 
 ```bash
 fvm dart run flutter_launcher_icons

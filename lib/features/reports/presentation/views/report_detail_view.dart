@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:reportaai_cm/app/routes.dart';
+import 'package:reportaai_cm/app/theme/app_colors.dart';
 import 'package:reportaai_cm/core/utils/date_formatters.dart';
 import 'package:reportaai_cm/core/widgets/error_view.dart';
 import 'package:reportaai_cm/core/widgets/loading_indicator.dart';
@@ -77,7 +78,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
   Future<void> _enlargePhoto(Report report) => showDialog<void>(
     context: context,
     builder: (context) => Dialog.fullscreen(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.photoBackdrop,
       child: Stack(
         children: [
           Positioned.fill(
