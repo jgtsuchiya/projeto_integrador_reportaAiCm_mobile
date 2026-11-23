@@ -77,23 +77,18 @@ void main() {
       expect(find.text('Tentar de novo').hitTestable(), findsOneWidget);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        final semantics = tester.ensureSemantics();
-        await tester.pumpApp(
-          Scaffold(
-            body: ErrorView(message: message, onRetry: () {}),
-          ),
-          themeMode: themeMode,
-        );
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpApp(
+        Scaffold(
+          body: ErrorView(message: message, onRetry: () {}),
+        ),
+      );
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

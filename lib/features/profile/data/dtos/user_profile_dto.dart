@@ -2,8 +2,9 @@ import 'package:reportaai_cm/features/profile/domain/models/role.dart';
 import 'package:reportaai_cm/features/profile/domain/models/user_profile.dart';
 import 'package:reportaai_cm/features/profile/domain/models/user_status.dart';
 
-/// O JSON do `GET /api/users/me` (exemplo no `FRONTEND.md` do backend). O `cpf`, o `phone` e o
-/// `birthDate` só vêm para o Client.
+/// O JSON do perfil (exemplo no `FRONTEND.md` do backend), o mesmo no `GET /api/users/me`, no
+/// `PATCH /api/users/me` e no `PATCH /api/users/me/mfa`. O `cpf`, o `phone` e o `birthDate` só vêm
+/// para o Client.
 final class UserProfileDto {
   const new({
     required this.id,
@@ -26,7 +27,7 @@ final class UserProfileDto {
   /// `ServerException`.
   factory fromJson(Object? json) {
     if (json is! Map<String, Object?>) {
-      throw const FormatException('A resposta do GET /api/users/me está fora do formato esperado.');
+      throw const FormatException('A resposta do perfil está fora do formato esperado.');
     }
 
     return UserProfileDto(
@@ -126,4 +127,4 @@ DateTime? _readDate(Map<String, Object?> json, String key) {
 }
 
 FormatException _invalidField(String key) =>
-    FormatException('O campo "$key" do GET /api/users/me está fora do formato esperado.');
+    FormatException('O campo "$key" do perfil está fora do formato esperado.');

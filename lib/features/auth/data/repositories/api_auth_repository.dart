@@ -4,12 +4,14 @@ import 'package:reportaai_cm/core/network/api_error_mapper.dart';
 import 'package:reportaai_cm/core/network/api_exception.dart';
 import 'package:reportaai_cm/features/auth/data/dtos/sign_in_request_dto.dart';
 import 'package:reportaai_cm/features/auth/data/dtos/sign_in_response_dto.dart';
+import 'package:reportaai_cm/features/auth/domain/models/email.dart';
 import 'package:reportaai_cm/features/auth/domain/models/sign_in_result.dart';
 import 'package:reportaai_cm/features/auth/domain/repositories/auth_repository.dart';
 
 /// [AuthRepository] que faz o login pelo `POST /api/auth/signin`, no `Dio` compartilhado, e deixa
 /// o resto da sessão com o [SessionManager]. O SDK do SuperTokens não tem função de login: o
-/// interceptor dele, no `Dio`, guarda a sessão que volta nos headers da resposta.
+/// interceptor dele, no `Dio`, guarda a sessão que volta nos headers da resposta. O "Esqueci minha
+/// senha" também passa pelo `Dio`, sem sessão.
 final class ApiAuthRepository implements AuthRepository {
   const new(this._dio, this._session);
 
@@ -48,4 +50,22 @@ final class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<bool> isSecondFactorPending() => callApi(_session.isSecondFactorPending);
+
+  @override
+  Future<void> verifyLoginCode(String code) => callApi(() async {
+    // A resposta é um 204, sem corpo. O interceptor do SDK guarda o access token novo, com a
+    // claim `mfa-verified` em `true`.
+    await _dio.post<Object?>('/mfa/verify', data: {'code': code.trim()});
+  });
+
+  @override
+  Future<void> resendLoginCode() => callApi(() async {
+    await _dio.post<Object?>('/mfa/code');
+  });
+
+  @override
+  Future<void> requestPasswordReset(String email) => callApi(() async {
+    // A resposta é sempre um 204, sem corpo, com ou sem conta (RN20).
+    await _dio.post<Object?>('/password-resets', data: {'email': normalizeEmail(email)});
+  });
 }

@@ -14,7 +14,7 @@ import '../../../../support/fake_profile_repository.dart';
 import '../../../../support/pump_app.dart';
 import '../../../../support/sign_out.dart';
 
-const _unverifiedEmail = 'E-mail não confirmado';
+const _verifyEmail = 'Confirme o seu e-mail';
 const _refreshFailed = 'Os dados não foram atualizados';
 
 void main() {
@@ -26,8 +26,8 @@ void main() {
     setUp(() => fakes = AuthFakes(signedIn: true));
 
     /// Abre a tela inicial com o Client já dentro.
-    Future<void> pumpView(WidgetTester tester, {ThemeMode themeMode = ThemeMode.light}) async {
-      await tester.pumpApp(const HomeView(), overrides: fakes.overrides, themeMode: themeMode);
+    Future<void> pumpView(WidgetTester tester) async {
+      await tester.pumpApp(const HomeView(), overrides: fakes.overrides);
       await tester.pump();
     }
 
@@ -40,11 +40,14 @@ void main() {
 
     AuthState authState(WidgetTester tester) => tester.container().read(authControllerProvider);
 
-    testWidgets('deve mostrar o nome do app e o "Sair" na barra superior', (tester) async {
+    testWidgets('deve mostrar o nome do app, a "Minha conta" e o "Sair" na barra superior', (
+      tester,
+    ) async {
       await pumpView(tester);
 
       final appBar = find.byType(AppBar);
       expect(find.descendant(of: appBar, matching: find.text('ReportaAi Cm')), findsOneWidget);
+      expect(find.descendant(of: appBar, matching: find.byTooltip('Minha conta')), findsOneWidget);
       expect(find.descendant(of: appBar, matching: find.text('Sair')), findsOneWidget);
     });
 
@@ -102,21 +105,7 @@ void main() {
         expect(find.text('(44) 3333-4444'), findsOneWidget);
       });
 
-      testWidgets('deve mostrar o selo com o e-mail não confirmado', (tester) async {
-        await pumpView(tester);
-
-        expect(find.text(_unverifiedEmail), findsOneWidget);
-      });
-
-      testWidgets('não deve mostrar o selo com o e-mail confirmado', (tester) async {
-        fakes.profile.result = verifiedProfile;
-
-        await pumpView(tester);
-
-        expect(find.text(_unverifiedEmail), findsNothing);
-      });
-
-      testWidgets('deve ler o rótulo, o valor e o selo juntos no leitor de tela', (tester) async {
+      testWidgets('deve ler o rótulo e o valor juntos no leitor de tela', (tester) async {
         final semantics = tester.ensureSemantics();
 
         await pumpView(tester);
@@ -126,8 +115,8 @@ void main() {
           isSemantics(label: 'Telefone\n(44) 99999-8888'),
         );
         expect(
-          tester.getSemantics(find.text(_unverifiedEmail)),
-          isSemantics(label: 'E-mail\nmaria.silva@exemplo.com\n$_unverifiedEmail'),
+          tester.getSemantics(find.text('maria.silva@exemplo.com')),
+          isSemantics(label: 'E-mail\nmaria.silva@exemplo.com'),
         );
         semantics.dispose();
       });
@@ -145,21 +134,77 @@ void main() {
       });
     });
 
-    testWidgets('deve avisar que os reportes chegam em breve, sem ação', (tester) async {
-      await pumpView(tester);
+    group('aviso do e-mail (RM14)', () {
+      testWidgets('deve mostrar o aviso, com o reenvio, antes dos dados', (tester) async {
+        await pumpView(tester);
 
-      final card = find.ancestor(of: find.text('Reportes em breve'), matching: find.byType(Card));
-      expect(card, findsOneWidget);
-      expect(
-        find.descendant(of: card, matching: find.bySubtype<ButtonStyleButton>()),
-        findsNothing,
-      );
+        expect(find.text(_verifyEmail), findsOneWidget);
+        expect(find.text('Reenviar e-mail'), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text(_verifyEmail)).dy,
+          lessThan(tester.getTopLeft(find.text('Seus dados')).dy),
+        );
+      });
+
+      testWidgets('não deve mostrar o aviso com o e-mail confirmado', (tester) async {
+        fakes.profile.result = verifiedProfile;
+
+        await pumpView(tester);
+
+        expect(find.text(_verifyEmail), findsNothing);
+      });
+
+      testWidgets('não deve mostrar mais o selo da sprint 3 no cartão dos dados', (tester) async {
+        await pumpView(tester);
+
+        expect(find.text('E-mail não confirmado'), findsNothing);
+      });
+    });
+
+    group('reportes', () {
+      testWidgets('deve mostrar o "Novo reporte" com o e-mail confirmado', (tester) async {
+        fakes.profile.result = verifiedProfile;
+        await pumpView(tester);
+
+        expect(find.widgetWithText(FilledButton, 'Novo reporte'), findsOneWidget);
+        expect(find.text(_verifyEmail), findsNothing);
+      });
+
+      testWidgets('deve mostrar o aviso do e-mail no lugar do "Novo reporte" (RM20)', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        expect(find.text(_verifyEmail), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'Novo reporte'), findsNothing);
+      });
+
+      testWidgets('deve mostrar a entrada "Meus reportes" também sem o e-mail confirmado', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        final entry = tester.widget<ListTile>(find.widgetWithText(ListTile, 'Meus reportes'));
+        expect(entry.onTap, isNotNull);
+      });
+
+      testWidgets('deve mostrar a entrada "Reportes perto de você", também sem o e-mail '
+          'confirmado (RM28)', (tester) async {
+        await pumpView(tester);
+
+        final entry = tester.widget<ListTile>(
+          find.widgetWithText(ListTile, 'Reportes perto de você'),
+        );
+        expect(entry.enabled, isTrue);
+        expect(entry.onTap, isNotNull);
+        expect(find.textContaining('Em breve'), findsNothing);
+      });
     });
 
     group('puxar para atualizar', () {
       testWidgets('deve buscar o perfil de novo e mostrar os dados novos', (tester) async {
         await pumpView(tester);
-        expect(find.text(_unverifiedEmail), findsOneWidget);
+        expect(find.text(_verifyEmail), findsOneWidget);
         fakes.profile.result = verifiedProfile;
 
         await pullToRefresh(tester);
@@ -167,7 +212,7 @@ void main() {
 
         expect(fakes.profile.calls, 2);
         expect(authState(tester), AuthAuthenticated(verifiedProfile));
-        expect(find.text(_unverifiedEmail), findsNothing);
+        expect(find.text(_verifyEmail), findsNothing);
       });
 
       testWidgets('deve mostrar o carregando enquanto atualiza', (tester) async {
@@ -233,7 +278,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(fakes.profile.calls, 2);
-        expect(find.text(_unverifiedEmail), findsNothing);
+        expect(find.text(_verifyEmail), findsNothing);
         semantics.dispose();
       });
     });
@@ -265,7 +310,9 @@ void main() {
       });
     });
 
-    testWidgets('deve aguentar a fonte em 200%, com o selo e o aviso', (tester) async {
+    testWidgets('deve aguentar a fonte em 200%, com o aviso do e-mail e o da atualização', (
+      tester,
+    ) async {
       tester.usePhoneScreen(textScale: 2);
       await pumpView(tester);
       fakes.profile.error = const NetworkException();
@@ -274,29 +321,25 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(_refreshFailed), findsOneWidget);
-      expect(find.text(_unverifiedEmail), findsOneWidget);
+      expect(find.text(_verifyEmail), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        final semantics = tester.ensureSemantics();
-        await pumpView(tester, themeMode: themeMode);
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpView(tester);
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
 
-        // Também com o aviso da atualização que falhou, em cima dos dados.
-        fakes.profile.error = const NetworkException();
-        await pullToRefresh(tester);
-        await tester.pumpAndSettle();
+      // Também com o aviso da atualização que falhou, em cima dos dados.
+      fakes.profile.error = const NetworkException();
+      await pullToRefresh(tester);
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

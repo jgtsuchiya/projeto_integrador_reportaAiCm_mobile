@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:reportaai_cm/app/theme/success_colors.dart';
 import 'package:reportaai_cm/core/config/app_config_provider.dart';
 import 'package:reportaai_cm/core/network/api_exception.dart';
 import 'package:reportaai_cm/core/utils/date_formatters.dart';
@@ -95,7 +96,7 @@ class _HealthResult extends StatelessWidget {
         Icon(
           status.isOk ? Icons.check_circle_outline : Icons.warning_amber,
           size: 48,
-          color: status.isOk ? theme.colorScheme.primary : theme.colorScheme.error,
+          color: status.isOk ? SuccessColors.of(context).success : theme.colorScheme.error,
         ),
         const SizedBox(height: 16),
         Semantics(

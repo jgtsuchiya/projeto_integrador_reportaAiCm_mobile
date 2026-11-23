@@ -125,6 +125,15 @@ final class LoginViewModel extends Notifier<LoginState> {
     return result;
   }
 
+  /// Mostra o [notice] que outra tela mandou ao voltar ao login, como o da conta criada sem o
+  /// login automático (RM12), no lugar do aviso e dos erros que estavam na tela. Durante a
+  /// contagem do 429, nada muda: o aviso da contagem continua.
+  void showNotice(String? notice) {
+    if (state.retrySeconds != null) return;
+
+    state = LoginState(message: notice);
+  }
+
   /// O usuário editou o [field]: o erro dele sai da tela, e o dos outros campos continua.
   void fieldChanged(SignInField field) {
     if (state.errorFor(field) == null) return;

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:reportaai_cm/app/app.dart';
+import 'package:reportaai_cm/core/auth/session_manager.dart';
 import 'package:reportaai_cm/core/network/api_exception.dart';
 import 'package:reportaai_cm/features/auth/domain/models/sign_in_result.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_controller.dart';
@@ -19,7 +20,7 @@ const _password = 'SenhaSecreta123';
 const _signedOut = AuthUnauthenticated();
 const _sessionExpired = AuthUnauthenticated(reason: UnauthenticatedReason.sessionExpired);
 const _roleNotAllowed = AuthUnauthenticated(reason: UnauthenticatedReason.roleNotAllowed);
-const _secondFactorPending = AuthUnauthenticated(reason: UnauthenticatedReason.secondFactorPending);
+const _accountDeleted = AuthUnauthenticated(reason: UnauthenticatedReason.accountDeleted);
 
 /// O Client do exemplo com outro papel.
 UserProfile _profileWith(Role role) => UserProfile(
@@ -79,26 +80,26 @@ void main() {
         expect(fakes.profile.calls, 1);
       });
 
-      test('deve sair e avisar com a sessão pendente da segunda etapa (RM08)', () async {
+      test('deve ir para a tela do código com a sessão pendente da segunda etapa (RM18)', () async {
         fakes.session
           ..hasStoredSession = true
           ..secondFactorPending = true;
 
-        await open();
+        final states = await open();
 
-        expect(state(), _secondFactorPending);
-        expect(fakes.session.signOutCalls, 1);
+        expect(states, [const AuthChecking(), const AuthSecondFactorPending()]);
+        expect(fakes.session.signOutCalls, 0, reason: 'A sessão pendente continua (fim da RM08).');
         expect(fakes.profile.calls, 0, reason: 'A sessão pendente não chama o /users/me.');
       });
 
-      test('deve sair e avisar quando o perfil responde que falta a segunda etapa', () async {
+      test('deve ir para a tela do código quando o perfil responde que falta a etapa', () async {
         fakes.session.hasStoredSession = true;
         fakes.profile.error = const SecondFactorPendingException();
 
         await open();
 
-        expect(state(), _secondFactorPending);
-        expect(fakes.session.signOutCalls, 1);
+        expect(state(), const AuthSecondFactorPending());
+        expect(fakes.session.signOutCalls, 0);
       });
 
       for (final role in [Role.admin, Role.superAdmin, Role.unknown]) {
@@ -260,14 +261,16 @@ void main() {
         expect(fakes.session.hasStoredSession, isFalse);
       });
 
-      test('deve sair e avisar no login com a segunda etapa pendente (RM08)', () async {
+      test('deve ir para a tela do código no login com a segunda etapa pendente (RM18)', () async {
         await open();
         fakes.session.secondFactorPending = true;
 
-        await signIn();
+        final result = await signIn();
 
-        expect(state(), _secondFactorPending);
-        expect(fakes.session.signOutCalls, 1);
+        expect(result, const SignInSuccess());
+        expect(state(), const AuthSecondFactorPending());
+        expect(fakes.session.signOutCalls, 0);
+        expect(fakes.profile.calls, 0);
       });
 
       test('deve ir para a abertura com o erro quando o perfil não carrega no login', () async {
@@ -330,19 +333,16 @@ void main() {
         expect(fakes.session.signOutCalls, 1);
       });
 
-      test(
-        'deve sair e avisar quando o perfil responde que falta a segunda etapa (RM08)',
-        () async {
-          await open();
-          fakes.profile.error = const SecondFactorPendingException();
+      test('deve ir para a tela do código quando o perfil responde que falta a etapa', () async {
+        await open();
+        fakes.profile.error = const SecondFactorPendingException();
 
-          await sut().refreshProfile();
-          await pumpEventQueue();
+        await sut().refreshProfile();
+        await pumpEventQueue();
 
-          expect(state(), _secondFactorPending);
-          expect(fakes.session.signOutCalls, 1);
-        },
-      );
+        expect(state(), const AuthSecondFactorPending());
+        expect(fakes.session.signOutCalls, 0);
+      });
 
       test('não deve buscar o perfil sem o Client dentro', () async {
         fakes.session.hasStoredSession = false;
@@ -377,6 +377,188 @@ void main() {
         await refresh;
 
         expect(state(), _signedOut);
+      });
+    });
+
+    group('verifySecondFactor', () {
+      setUp(() {
+        fakes.session
+          ..hasStoredSession = true
+          ..secondFactorPending = true;
+      });
+
+      test('deve concluir o login com o código certo e guardar o perfil (RM18)', () async {
+        await open();
+
+        await sut().verifySecondFactor('042137');
+
+        expect(state(), AuthAuthenticated(clientProfile));
+        expect(fakes.auth.verifyLoginCodeCalls, ['042137']);
+        expect(fakes.profile.calls, 1);
+      });
+
+      test('deve lançar o erro do código errado e continuar na tela do código', () async {
+        await open();
+        fakes.auth.verifyLoginCodeError = const BusinessRuleException(
+          message: 'Código inválido ou expirado.',
+          field: 'code',
+        );
+
+        await expectLater(
+          sut().verifySecondFactor('000000'),
+          throwsA(isA<BusinessRuleException>()),
+        );
+
+        expect(state(), const AuthSecondFactorPending());
+        expect(fakes.profile.calls, 0);
+      });
+
+      test('deve lançar o erro sem conexão e continuar na tela do código', () async {
+        await open();
+        fakes.auth.verifyLoginCodeError = const NetworkException();
+
+        await expectLater(sut().verifySecondFactor('042137'), throwsA(isA<NetworkException>()));
+
+        expect(state(), const AuthSecondFactorPending());
+      });
+
+      test('deve sair e avisar quando o papel não é o CLIENT, depois do código (RM01)', () async {
+        fakes.profile.result = adminProfile;
+        await open();
+
+        await sut().verifySecondFactor('042137');
+
+        expect(state(), _roleNotAllowed);
+        expect(fakes.session.signOutCalls, 1);
+      });
+
+      test('não deve conferir o código sem a sessão pendente', () async {
+        fakes.session.secondFactorPending = false;
+        await open();
+
+        await sut().verifySecondFactor('042137');
+
+        expect(fakes.auth.verifyLoginCodeCalls, isEmpty);
+        expect(state(), AuthAuthenticated(clientProfile));
+      });
+
+      test('deve voltar ao login, sem aviso, com o "Sair" da tela do código', () async {
+        await open();
+
+        await sut().signOut();
+        await pumpEventQueue();
+
+        expect(state(), _signedOut);
+        expect(fakes.session.hasStoredSession, isFalse);
+      });
+
+      test('deve voltar ao login com o aviso quando a sessão pendente acaba (RM07)', () async {
+        await open();
+
+        fakes.session.expire();
+        await pumpEventQueue();
+
+        expect(state(), _sessionExpired);
+      });
+    });
+
+    group('replaceProfile', () {
+      test('deve trocar o perfil do Client dentro, sem buscar de novo', () async {
+        fakes.session.hasStoredSession = true;
+        await open();
+        final updated = clientProfileWith(name: 'Maria Souza');
+
+        sut().replaceProfile(updated);
+
+        expect(state(), AuthAuthenticated(updated));
+        expect(fakes.profile.calls, 1, reason: 'Só a busca da abertura.');
+      });
+
+      test('deve ignorar o perfil sem o Client dentro', () async {
+        await open();
+
+        sut().replaceProfile(clientProfile);
+
+        expect(state(), _signedOut);
+      });
+
+      test('deve descartar a atualização em andamento, que traria o perfil antigo', () async {
+        fakes.session.hasStoredSession = true;
+        await open();
+        final stale = fakes.profile.pending = Completer<UserProfile>();
+        final refresh = sut().refreshProfile();
+        final updated = clientProfileWith(name: 'Maria Souza');
+
+        sut().replaceProfile(updated);
+        stale.complete(clientProfile);
+        await refresh;
+
+        expect(state(), AuthAuthenticated(updated));
+      });
+    });
+
+    group('deleteAccount', () {
+      setUp(() => fakes.session.hasStoredSession = true);
+
+      test('deve excluir a conta, apagar a sessão e avisar no login (RM17)', () async {
+        await open();
+
+        await sut().deleteAccount(password: _password);
+        await pumpEventQueue();
+
+        expect(state(), _accountDeleted);
+        expect(fakes.profile.deleteAccountCalls, [_password]);
+        expect(fakes.session.signOutCalls, 1);
+        expect(fakes.session.hasStoredSession, isFalse);
+      });
+
+      test(
+        'deve avisar a exclusão, e não a sessão expirada, quando o SDK avisa o fim dela',
+        () async {
+          // Com a conta excluída, a API recusa o signout e a renovação, e o SDK apaga os tokens
+          // como se a sessão tivesse vencido.
+          fakes.session.signOutEvent = SessionEvent.expired;
+          await open();
+
+          await sut().deleteAccount(password: _password);
+          await pumpEventQueue();
+
+          expect(state(), _accountDeleted);
+        },
+      );
+
+      test('deve avisar a exclusão mesmo sem conseguir apagar a sessão do aparelho', () async {
+        await open();
+        fakes.session.signOutError = const NetworkException();
+
+        await sut().deleteAccount(password: _password);
+
+        expect(state(), _accountDeleted);
+      });
+
+      test('deve lançar o erro da senha incorreta e continuar logado (RM15)', () async {
+        await open();
+        fakes.profile.deleteAccountError = const BusinessRuleException(
+          message: 'Senha incorreta.',
+          field: 'password',
+        );
+
+        await expectLater(
+          sut().deleteAccount(password: 'errada-1'),
+          throwsA(isA<BusinessRuleException>()),
+        );
+
+        expect(state(), AuthAuthenticated(clientProfile));
+        expect(fakes.session.signOutCalls, 0);
+      });
+
+      test('não deve excluir sem o Client dentro', () async {
+        fakes.session.hasStoredSession = false;
+        await open();
+
+        await sut().deleteAccount(password: _password);
+
+        expect(fakes.profile.deleteAccountCalls, isEmpty);
       });
     });
 

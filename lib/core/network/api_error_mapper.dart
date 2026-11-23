@@ -65,12 +65,12 @@ ApiException _fromResponse(Response<dynamic> response) {
 
   return switch (status) {
     400 => ValidationException(message: body.message, fieldErrors: body.fieldErrors),
-    401 => UnauthorizedException(message: body.message, field: body.field),
+    401 => UnauthorizedException(message: body.message),
     403 when body.hasClaimValidationErrors => const SecondFactorPendingException(),
     403 => ForbiddenException(message: body.message),
     404 => NotFoundException(message: body.message),
     409 => ConflictException(message: body.message, field: body.field),
-    422 => BusinessRuleException(message: body.message),
+    422 => BusinessRuleException(message: body.message, field: body.field),
     429 => RateLimitException(message: body.message, retryAfter: _retryAfter(response.headers)),
     _ => ServerException(statusCode: status),
   };
@@ -116,7 +116,7 @@ final class _ErrorBody {
             if (item case {'field': final String field, 'message': final String message})
               FieldError(field: field, message: message),
       ],
-      // 401 e 409: `details` é um objeto com o campo, ex.: `{ "field": "email" }`.
+      // 409 e 422: `details` é um objeto com o campo, ex.: `{ "field": "email" }`.
       field: switch (details) {
         {'field': final String field} => field,
         _ => null,

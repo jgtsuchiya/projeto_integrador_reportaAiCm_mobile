@@ -22,7 +22,27 @@ abstract interface class AuthRepository {
   Future<bool> hasSession();
 
   /// Se a sessão está pendente da segunda etapa do login, a verificação em duas etapas (RN25,
-  /// RM08). Lança a `UnauthorizedException` quando a sessão acabou e foi apagada, e a
+  /// RM18). Lança a `UnauthorizedException` quando a sessão acabou e foi apagada, e a
   /// `NetworkException` sem rede para renovar, com a sessão mantida.
   Future<bool> isSecondFactorPending();
+
+  /// Conclui o login com o [code] de 6 dígitos enviado por e-mail (`POST /api/mfa/verify`, com a
+  /// sessão pendente). A resposta já traz o access token da sessão completa, que o SDK guarda.
+  ///
+  /// Lança a `BusinessRuleException` (422, com o `field` igual a `code`) com o código errado,
+  /// vencido, já usado ou invalidado por 5 erros: a API dá a mesma mensagem nos quatro casos. Lança
+  /// a `ValidationException` com o código fora do formato e a `NetworkException` sem conexão.
+  Future<void> verifyLoginCode(String code);
+
+  /// Envia um código novo, que invalida o anterior (`POST /api/mfa/code`, com a sessão pendente).
+  /// Lança a `BusinessRuleException` (422) quando o último código saiu há menos de 1 minuto.
+  Future<void> resendLoginCode();
+
+  /// "Esqueci minha senha": pede o link para criar uma senha nova (`POST /api/password-resets`,
+  /// público), com o [email] sem os espaços das pontas e em minúsculas (RN02). A API responde do
+  /// mesmo jeito com ou sem conta (RN20), e o método termina sem dizer qual foi o caso.
+  ///
+  /// Lança a `ValidationException` com o e-mail fora do formato, a `RateLimitException` no limite
+  /// por IP, a `NetworkException` sem conexão e a `ServerException` no 5xx.
+  Future<void> requestPasswordReset(String email);
 }

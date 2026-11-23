@@ -9,7 +9,10 @@ import 'package:flutter/foundation.dart';
 ///
 /// - os headers de [sensitiveHeaders] saem como `***`, na ida e na volta;
 /// - o corpo das rotas de `/api/auth` (login, renovação e saída) não aparece;
-/// - nos outros corpos e na query, os campos de [sensitiveFields] saem como `***`.
+/// - nos outros corpos e na query, os campos de [sensitiveFields] saem como `***`, como o IP e o
+///   `User-Agent` de cada sessão aberta, e as coordenadas e a precisão dos reportes;
+/// - as imagens em base64 dos reportes ([imageFields]) saem como `*** (512 KB)`, só com o tamanho
+///   do texto (RM27).
 final class ApiLogInterceptor extends Interceptor {
   new({void Function(String message)? log}) : _log = log ?? debugPrint;
 
@@ -26,7 +29,9 @@ final class ApiLogInterceptor extends Interceptor {
     'set-cookie',
   };
 
-  /// Comparados sem diferenciar maiúsculas de minúsculas.
+  /// Comparados sem diferenciar maiúsculas de minúsculas. O `ipAddress` e o `userAgent` são os
+  /// da lista de sessões abertas, que dizem de onde a conta entrou. A `latitude`, a `longitude` e
+  /// o `accuracyMeters` são a localização do reporte e do aparelho (RM27).
   static const sensitiveFields = {
     'password',
     'currentpassword',
@@ -34,7 +39,16 @@ final class ApiLogInterceptor extends Interceptor {
     'token',
     'code',
     'cpf',
+    'ipaddress',
+    'useragent',
+    'latitude',
+    'longitude',
+    'accuracymeters',
   };
+
+  /// As imagens em base64 dos reportes: a foto (`content`) e a miniatura (`thumbnail`), no envio
+  /// e na resposta do `GET /api/reports/:id/photo`. Saem só com o tamanho do texto.
+  static const imageFields = {'content', 'thumbnail'};
 
   static const _maxBodyLength = 2000;
   static const _stopwatchKey = 'apiLogStopwatch';
@@ -134,6 +148,14 @@ final class ApiLogInterceptor extends Interceptor {
 
 bool _isSensitiveField(String key) => ApiLogInterceptor.sensitiveFields.contains(key.toLowerCase());
 
+bool _isImageField(String key) => ApiLogInterceptor.imageFields.contains(key.toLowerCase());
+
+/// A imagem em base64 como `*** (512 KB)`, com o tamanho do texto arredondado para cima.
+String _maskImage(Object? value) => switch (value) {
+  final String text => '${ApiLogInterceptor.redacted} (${(text.length / 1024).ceil()} KB)',
+  _ => ApiLogInterceptor.redacted,
+};
+
 Object? _headerValue(Object? value) => value is List ? value.join(', ') : value;
 
 /// O corpo já decodificado (mapa ou lista) ou `null` quando não é JSON.
@@ -152,7 +174,11 @@ Object? _asJson(Object? data) {
 Object? _mask(Object? value) => switch (value) {
   Map<dynamic, dynamic>() => {
     for (final MapEntry(:key, value: item) in value.entries)
-      key.toString(): _isSensitiveField(key.toString()) ? ApiLogInterceptor.redacted : _mask(item),
+      key.toString(): switch (key.toString()) {
+        final name when _isSensitiveField(name) => ApiLogInterceptor.redacted,
+        final name when _isImageField(name) => _maskImage(item),
+        _ => _mask(item),
+      },
   },
   List<dynamic>() => [for (final item in value) _mask(item)],
   _ => value,

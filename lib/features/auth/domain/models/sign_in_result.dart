@@ -1,4 +1,6 @@
 import 'package:meta/meta.dart';
+import 'package:reportaai_cm/features/auth/domain/models/email.dart';
+import 'package:reportaai_cm/features/auth/domain/models/password.dart';
 
 /// Os campos do formulário de login, para a mensagem de erro de cada um ([SignInFieldError]).
 enum SignInField { email, password }
@@ -46,9 +48,9 @@ final class SignInWrongCredentials extends SignInResult {
 final class SignInFieldError extends SignInResult {
   const new(this.errors);
 
-  static const emailRequiredMessage = 'Informe o e-mail.';
-  static const emailInvalidMessage = 'E-mail inválido.';
-  static const passwordRequiredMessage = 'Informe a senha.';
+  static const String emailRequiredMessage = EmailMessages.missing;
+  static const String emailInvalidMessage = EmailMessages.invalid;
+  static const String passwordRequiredMessage = PasswordMessages.missing;
 
   final Map<SignInField, String> errors;
 

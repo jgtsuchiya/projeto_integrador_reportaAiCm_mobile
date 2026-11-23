@@ -2,7 +2,7 @@
 
 App do cidadão do **ReportaAi Cm**, plataforma para que os moradores de **Campo Mourão (PR)** reportem buracos no asfalto e para que a prefeitura acompanhe e analise esses reportes.
 
-> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI) e o login do cidadão, com a tela inicial com os dados dele. O cadastro, o "Esqueci minha senha" e os reportes entram nas próximas sprints.
+> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI), o login do cidadão, com a tela inicial com os dados dele, o cadastro pelo app, o "Esqueci minha senha", o aviso para confirmar o e-mail, a verificação em duas etapas no login, a área "Minha conta" (dados, senha, sessões abertas, verificação em duas etapas e exclusão da conta) e os reportes: abrir um reporte com a foto e a localização do aparelho, acompanhar os próprios reportes, editar e excluir, e validar os reportes dos outros cidadãos perto de você ("Está lá" ou "Não está lá"), até as 10 confirmações.
 
 ## Sumário
 
@@ -12,6 +12,7 @@ App do cidadão do **ReportaAi Cm**, plataforma para que os moradores de **Campo
 - [Instalação e execução local](#instalação-e-execução-local)
 - [Conectando à API local](#conectando-à-api-local)
 - [Entrando no app](#entrando-no-app)
+- [Abrindo um reporte](#abrindo-um-reporte)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
 - [Comandos disponíveis](#comandos-disponíveis)
 - [Estrutura de pastas](#estrutura-de-pastas)
@@ -27,7 +28,7 @@ Este app é a porta de entrada do **cidadão**. Qualquer morador de Campo Mourã
 - a **localização** do problema é capturada no momento do reporte;
 - o cidadão envia uma **foto** do buraco.
 
-> O que acontece com o reporte depois de aberto (acompanhamento, status e retorno ao cidadão) ainda está em definição.
+Depois de aberto, o reporte fica **em validação**: com 10 confirmações de outros cidadãos, perto do buraco, ele passa a ser considerado verdadeiro, como nos alertas do Waze e do Google Maps. O cidadão acompanha os próprios reportes pelo app, com o status e as confirmações. O atendimento pela prefeitura (em andamento, resolvido) entra com o painel.
 
 Os servidores da prefeitura usam um **painel web** à parte, para visualizar os reportes e analisar os dados num dashboard. Os dois falam com a mesma [API backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend).
 
@@ -42,20 +43,24 @@ flowchart LR
 
 ## Stack
 
-| Camada              | Tecnologia                                               |
-| ------------------- | -------------------------------------------------------- |
-| Plataformas         | Android e iOS                                            |
-| Framework           | Flutter 3.47 (Dart 3.13), com a versão fixada pelo FVM   |
-| Interface           | Material 3 (`material_ui`), tema claro e escuro          |
-| Estado e injeção    | Riverpod 3.4 (`flutter_riverpod`), sem geração de código |
-| Navegação           | go_router 18                                             |
-| HTTP                | Dio 5.11                                                 |
-| Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)   |
-| Idioma              | pt-BR, com `flutter_localizations` e `intl`              |
-| Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)    |
-| Testes              | `flutter_test`, `mocktail` e `integration_test`          |
-| Hooks e commits     | Husky, commitlint e lint-staged (os mesmos do backend)   |
-| Integração contínua | GitHub Actions                                           |
+| Camada              | Tecnologia                                                |
+| ------------------- | --------------------------------------------------------- |
+| Plataformas         | Android e iOS                                             |
+| Framework           | Flutter 3.47 (Dart 3.13), com a versão fixada pelo FVM    |
+| Interface           | Material 3 (`material_ui`), cores da UTFPR, só tema claro |
+| Estado e injeção    | Riverpod 3.4 (`flutter_riverpod`), sem geração de código  |
+| Navegação           | go_router 18                                              |
+| HTTP                | Dio 5.11                                                  |
+| Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)    |
+| Versão do app       | `package_info_plus` 10.2.2, para o `User-Agent`           |
+| Câmera              | `image_picker` 1.2.4, só a câmera (sem a galeria)         |
+| Tratamento da foto  | `flutter_image_compress` 2.5.1 (nativo)                   |
+| Localização         | `geolocator` 14.1.2                                       |
+| Idioma              | pt-BR, com `flutter_localizations` e `intl`               |
+| Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)     |
+| Testes              | `flutter_test`, `mocktail` e `integration_test`           |
+| Hooks e commits     | Husky, commitlint e lint-staged (os mesmos do backend)    |
+| Integração contínua | GitHub Actions                                            |
 
 Todas as dependências usam **versão exata** (sem `^`), no `pubspec.yaml` e no `package.json`, e o `pubspec.lock` é versionado.
 
@@ -94,7 +99,7 @@ fvm flutter run --dart-define-from-file=env/dev.json
 
 No VS Code, o passo 5 é a configuração **ReportaAi Cm (dev)** do _Run and Debug_ (F5), que já passa o `--dart-define-from-file`.
 
-Sem uma sessão guardada, o app abre no login. Para conferir a conexão com a API, toque em **Diagnóstico da API**, embaixo do "Entrar": a tela mostra o endereço usado e **ok** quando a API responde. O atalho e a tela de diagnóstico só existem em debug. Para entrar, crie um Client de teste ([Entrando no app](#entrando-no-app)).
+Sem uma sessão guardada, o app abre no login. Para conferir a conexão com a API, toque em **Diagnóstico da API**, no fim do login: a tela mostra o endereço usado e **ok** quando a API responde. O atalho e a tela de diagnóstico só existem em debug. Para entrar, crie uma conta pelo **Criar conta** ([Entrando no app](#entrando-no-app)).
 
 ## Conectando à API local
 
@@ -129,30 +134,60 @@ Depois de trocar a `API_URL`, pare o app e rode de novo: o hot reload não relê
 
 ## Entrando no app
 
-O app é do cidadão: só entra um **Client** (RM01). O SuperAdm do seed do backend é recusado, com o aviso "Este aplicativo é para cidadãos". Enquanto o cadastro pelo app não existe, crie o Client pela API:
+O app é do cidadão: só entra um **Client** (RM01). O SuperAdm do seed do backend é recusado, com o aviso "Este aplicativo é para cidadãos".
 
-1. Com a API no ar, abra o [`docs/api.http`](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend/blob/develop/docs/api.http) do backend no VS Code, com a extensão REST Client, e envie a requisição **"Cadastra o Client"**, da seção 4. Ela cria a Maria da Silva, com o e-mail `maria.silva@reportaai.local` e a senha `SenhaForte123`. Sem o VS Code, o mesmo cadastro pelo terminal:
+1. **Crie a conta pelo app.** Com a API no ar, toque em **Criar conta**, no login, e preencha os dados. O CPF precisa ter os dígitos verificadores válidos (ex.: `529.982.247-25`, se ainda não tiver conta) e a senha, de 8 a 128 caracteres, com pelo menos uma letra e um número. Com a conta criada, o app entra sozinho e abre a tela inicial, com o aviso "Confirme o seu e-mail".
+2. **Confirme o e-mail.** O link do e-mail aparece no Mailpit, em http://localhost:8025. Ele abre a página `/verificar-email` do painel web, que ainda não existe: confirme pela seção 5 do [`docs/api.http`](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend/blob/develop/docs/api.http) do backend, com o `token` do link, ou pelo terminal:
 
    ```bash
-   curl -X POST http://localhost:3000/api/clients \
+   curl -X POST http://localhost:3000/api/email-verifications/confirm \
      -H 'Content-Type: application/json' \
-     -d '{"name":"Maria da Silva","email":"maria.silva@reportaai.local","password":"SenhaForte123","cpf":"529.982.247-25","phone":"(44) 99999-8888","birthDate":"1990-05-20"}'
+     -d '{"token":"<o token do link>"}'
    ```
 
-   A resposta 201 traz o perfil criado. Um 409 quer dizer que o e-mail ou o CPF já tem conta: entre com a mesma senha.
+   De volta ao app, o aviso some sozinho. O **Reenviar e-mail** manda outro link, um por minuto.
 
-2. No app, entre com o e-mail e a senha. A tela inicial mostra os dados do `GET /api/users/me`, com o selo "E-mail não confirmado". Para tirá-lo, confirme o e-mail pela seção 5 do `api.http` (o link está no Mailpit, em http://localhost:8025) e puxe a tela inicial para baixo, para atualizar.
-3. O app guarda a sessão: na próxima abertura, ele vai direto à tela inicial. Para voltar ao login, use o **Sair**.
+3. **Esqueceu a senha?** O **Esqueci minha senha**, no login, manda o link para criar uma senha nova, que também aparece no Mailpit. A página `/redefinir-senha` do painel ainda não existe: defina a senha nova pela seção 6 do `api.http` (`POST /api/password-resets/confirm`, com o `token` e a `password`) e entre com ela.
+4. O app guarda a sessão: na próxima abertura, ele vai direto à tela inicial. Para voltar ao login, use o **Sair**.
+5. **Minha conta.** O ícone da conta, na barra da tela inicial, abre os dados e as ações da conta: editar o nome, o telefone e a data de nascimento, trocar a senha, ver e encerrar as sessões abertas, ligar a verificação em duas etapas e excluir a conta.
+   - **Verificação em duas etapas.** Ela exige o e-mail confirmado (passo 2). Com ela ativa, o login pede um código de 6 dígitos, que chega no Mailpit, no e-mail "Seu código de acesso ao ReportaAi Cm".
+   - **Senha atual errada.** A troca de senha, a verificação e a exclusão mostram "Senha atual incorreta." no campo. Se o app voltar ao login com "Sua sessão expirou" nessas telas, a API está sem a T8 da sprint 4 (a senha errada respondia 401): atualize o backend.
 
-| Sintoma                                                                | Causa                                                                                                      | Solução                                                                           |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| O login mostra "Este aplicativo é para cidadãos..."                    | A conta é do SuperAdm ou de um ADM                                                                         | Entre com um Client (passo 1)                                                     |
-| O login mostra "Muitas tentativas. Tente novamente em alguns minutos." | 5 senhas erradas para o mesmo e-mail em 15 minutos (RN17)                                                  | Espere uma das falhas sair da janela, ou redefina a senha (seção 6 do `api.http`) |
-| O login mostra "Muitas tentativas. Tente de novo em N s."              | Mais de 20 logins por minuto do mesmo IP (RN18)                                                            | Espere a contagem: o "Entrar" volta sozinho                                       |
-| A abertura mostra "Não foi possível abrir a sua conta"                 | Há uma sessão guardada, e a API não respondeu                                                              | Suba a API e toque em "Tentar de novo"                                            |
-| O app volta ao login com "Sua sessão expirou. Entre de novo."          | A sessão acabou na API: 7 dias sem abrir o app, o Client inativado ou a sessão encerrada em outro aparelho | Entre de novo                                                                     |
+Sem o app, o mesmo cadastro pela API cria a Maria da Silva da seção 4 do `api.http` (`maria.silva@reportaai.local` e `SenhaForte123`):
 
-Como o login, a sessão e o redirect funcionam por dentro está no [docs/AUTH.md](docs/AUTH.md).
+```bash
+curl -X POST http://localhost:3000/api/clients \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Maria da Silva","email":"maria.silva@reportaai.local","password":"SenhaForte123","cpf":"529.982.247-25","phone":"(44) 99999-8888","birthDate":"1990-05-20"}'
+```
+
+| Sintoma                                                                 | Causa                                                                                                      | Solução                                                             |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| O cadastro mostra "E-mail já cadastrado." ou "CPF já cadastrado."       | O e-mail ou o CPF já tem conta                                                                             | Toque em **Entrar** (o atalho embaixo do e-mail) ou use outro CPF   |
+| O cadastro mostra "Algo deu errado. Tente de novo em instantes."        | A API respondeu 500: faltam as migrations ou o seed na base de dev                                         | No backend, `npm run migration:run` e `npm run seed`                |
+| O login mostra "Este aplicativo é para cidadãos..."                     | A conta é do SuperAdm ou de um ADM                                                                         | Entre com um Client (passo 1)                                       |
+| O login mostra "Muitas tentativas. Tente novamente em alguns minutos."  | 5 senhas erradas para o mesmo e-mail em 15 minutos (RN17)                                                  | Espere uma das falhas sair da janela, ou redefina a senha (passo 3) |
+| O login ou o cadastro mostra "Muitas tentativas. Tente de novo em N s." | Mais de 20 requisições por minuto do mesmo IP (RN18)                                                       | Espere a contagem: o botão volta sozinho                            |
+| A abertura mostra "Não foi possível abrir a sua conta"                  | Há uma sessão guardada, e a API não respondeu                                                              | Suba a API e toque em "Tentar de novo"                              |
+| O app volta ao login com "Sua sessão expirou. Entre de novo."           | A sessão acabou na API: 7 dias sem abrir o app, o Client inativado ou a sessão encerrada em outro aparelho | Entre de novo                                                       |
+| O login pede o código, e o e-mail não chega                             | O Mailpit está fora do ar, ou o código saiu há menos de 1 minuto (um por minuto)                           | Confira o Mailpit e toque em "Enviar outro código" depois da espera |
+
+Como o login, o cadastro, a segunda etapa, a "Minha conta", a sessão e o redirect funcionam por dentro está no [docs/AUTH.md](docs/AUTH.md).
+
+## Abrindo um reporte
+
+Com o e-mail confirmado (passo 2 de [Entrando no app](#entrando-no-app)), o **Novo reporte** da tela inicial abre a câmera do aparelho. A localização é lida junto com a foto, e o envio só fica liberado com a precisão de até 50 m: num lugar fechado, vá para perto de uma janela ou para fora. Antes de enviar, o app avisa quando já existe um reporte a até 30 m. Os reportes ficam em **Meus reportes**, com o status, as confirmações, a edição e a exclusão. Em **Reportes perto de você**, o cidadão vê os reportes em validação de outros cidadãos a até 500 m e vota se o buraco está lá: o voto pede a confirmação e confere a localização de agora ([como testar com duas contas](docs/REPORTS.md#testando-no-aparelho)).
+
+- **API:** precisa das rotas de `/api/reports` (os dois epics dos reportes do backend: a abertura e o voto) e das migrations dos reportes na base (`npm run migration:run`).
+- **Aparelho:** a câmera e o GPS são os do celular. Teste num Android físico: no Linux desktop, o "Novo reporte" não abre a câmera, e as outras telas dos reportes funcionam.
+- **Fora de Campo Mourão:** a API recusa a localização. Aumente a `REPORT_AREA_BOUNDS` no `.env` local do backend.
+
+| Permissão   | Android                                           | iOS                                   | Quando o app pede                                     |
+| ----------- | ------------------------------------------------- | ------------------------------------- | ----------------------------------------------------- |
+| Localização | `ACCESS_FINE_LOCATION` e `ACCESS_COARSE_LOCATION` | `NSLocationWhenInUseUsageDescription` | Na primeira foto, depois de explicar o porquê na tela |
+| Câmera      | Nenhuma: o app da câmera do aparelho tira a foto  | `NSCameraUsageDescription`            | Na primeira foto (só no iOS)                          |
+
+A foto vai sem o EXIF (o GPS e o modelo do aparelho) e na orientação certa, com o maior lado em 1600 px. Como a foto, a localização e o envio funcionam por dentro, o passo a passo no aparelho e os problemas comuns estão no [docs/REPORTS.md](docs/REPORTS.md).
 
 ## Variáveis de ambiente
 
@@ -205,7 +240,7 @@ Rode todos pelo FVM, para usar a versão do Flutter do projeto.
 
 ### Ícone e splash
 
-O ícone e o splash são provisórios: um pino de localização branco sobre a cor-base do tema. As imagens ficam em [assets/branding/](assets/branding), e a configuração dos geradores, em [flutter_launcher_icons.yaml](flutter_launcher_icons.yaml) e [flutter_native_splash.yaml](flutter_native_splash.yaml). Para trocar, substitua as imagens (e a cor, se mudar) e rode:
+O ícone e o splash são o logo do app: um pino de localização branco sobre o laranja `#E65100`. O laranja é só do logo: o tema usa as cores da UTFPR ([ARCHITECTURE.md](docs/ARCHITECTURE.md#tema-idioma-e-componentes)). As imagens ficam em [assets/branding/](assets/branding), e a configuração dos geradores, em [flutter_launcher_icons.yaml](flutter_launcher_icons.yaml) e [flutter_native_splash.yaml](flutter_native_splash.yaml). Para trocar, substitua as imagens (e a cor, se mudar) e rode:
 
 ```bash
 fvm dart run flutter_launcher_icons
@@ -239,15 +274,18 @@ Cada funcionalidade é uma pasta independente, dividida em camadas. A regra de d
 
 ## Documentação
 
-| Documento                                                                                        | Conteúdo                                                                                                                      |
-| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                                     | Camadas, regra de dependência, Riverpod, rede e erros da API, navegação, tema, nomes e como criar uma feature                 |
-| [docs/AUTH.md](docs/AUTH.md)                                                                     | Login e sessão: o SDK do SuperTokens, o `AuthController`, o redirect, as regras RM01 a RM10 e como criar uma tela autenticada |
-| [docs/TESTING.md](docs/TESTING.md)                                                               | Tipos de teste, o que testar em cada camada, `pumpApp`, fakes, fluxos, acessibilidade, cobertura e integração                 |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                                                               | Git Flow, padrão de commits, Pull Requests e releases                                                                         |
-| [docs/sprints/sprint-3-configuracao.md](docs/sprints/sprint-3-configuracao.md)                   | Plano da sprint 3: configuração e arquitetura do app                                                                          |
-| [docs/sprints/sprint-3-login.md](docs/sprints/sprint-3-login.md)                                 | Plano da sprint 3: login e tela inicial (RM01 a RM10)                                                                         |
-| [README do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend#readme) | A API: instalação, rotas, autenticação e regras de negócio                                                                    |
+| Documento                                                                                        | Conteúdo                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                                     | Camadas, regra de dependência, Riverpod, rede e erros da API, navegação, tema, nomes e como criar uma feature                                                                                                                         |
+| [docs/AUTH.md](docs/AUTH.md)                                                                     | Login, sessão e acesso: o SDK do SuperTokens, o `AuthController`, o redirect, o cadastro, o "Esqueci minha senha", a confirmação do e-mail, a segunda etapa, a "Minha conta", as regras RM01 a RM19 e como criar uma tela autenticada |
+| [docs/REPORTS.md](docs/REPORTS.md)                                                               | Reportes: a câmera, o tratamento da foto, a localização e as permissões, a `Idempotency-Key`, o cache das fotos, a validação, as regras RM20 a RM30 e como testar no aparelho e sem sair na rua                                       |
+| [docs/TESTING.md](docs/TESTING.md)                                                               | Tipos de teste, o que testar em cada camada, `pumpApp`, fakes, fluxos, acessibilidade, cobertura e integração                                                                                                                         |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                                               | Git Flow, padrão de commits, Pull Requests e releases                                                                                                                                                                                 |
+| [docs/sprints/sprint-3-configuracao.md](docs/sprints/sprint-3-configuracao.md)                   | Plano da sprint 3: configuração e arquitetura do app                                                                                                                                                                                  |
+| [docs/sprints/sprint-3-login.md](docs/sprints/sprint-3-login.md)                                 | Plano da sprint 3: login e tela inicial (RM01 a RM10)                                                                                                                                                                                 |
+| [docs/sprints/sprint-4-acesso.md](docs/sprints/sprint-4-acesso.md)                               | Plano da sprint 4: cadastro, recuperação de acesso e "Minha conta" (RM11 a RM19)                                                                                                                                                      |
+| [docs/sprints/sprint-4-reportes.md](docs/sprints/sprint-4-reportes.md)                           | Plano da sprint 4: reportes e validação no app (RM20 a RM30)                                                                                                                                                                          |
+| [README do backend](https://github.com/jgtsuchiya/projeto_integrador_reportaAiCm_backend#readme) | A API: instalação, rotas, autenticação e regras de negócio                                                                                                                                                                            |
 
 ## Contribuindo
 

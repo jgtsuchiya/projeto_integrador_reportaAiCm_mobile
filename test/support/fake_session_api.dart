@@ -86,10 +86,11 @@ final class FakeSessionApi {
 }
 
 /// Os headers com que a API abre e renova a sessão no modo header: os dois tokens e o front
-/// token, com o [payload] do access token, que o SDK lê sem chamar a API.
+/// token, com o [payload] do access token, que o SDK lê sem chamar a API. Sem o [refreshToken],
+/// só o access token muda, como na resposta do código da segunda etapa.
 Map<String, String> sessionHeaders({
   required String accessToken,
-  required String refreshToken,
+  String? refreshToken,
   Map<String, Object?> payload = const {},
   bool expired = false,
 }) {
@@ -99,7 +100,7 @@ Map<String, String> sessionHeaders({
   return {
     'front-token': base64Encode(utf8.encode(jsonEncode(frontToken))),
     'st-access-token': accessToken,
-    'st-refresh-token': refreshToken,
+    'st-refresh-token': ?refreshToken,
   };
 }
 

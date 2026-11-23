@@ -51,13 +51,17 @@ void main() {
       find.text('Olá, Maria'),
       reason: 'O login do Client não chegou à tela inicial.',
     );
+    // A tela inicial aparece com o login ainda saindo, na transição: o campo do e-mail dele ainda
+    // está na árvore.
+    await tester.pumpAndSettle();
 
     // Os dados do GET /api/users/me, formatados, com o CPF mascarado (RM09).
     final cpf = client.cpf;
     for (final value in [
       client.name,
       client.email,
-      'E-mail não confirmado',
+      // O aviso do e-mail ainda não confirmado (RM14).
+      'Confirme o seu e-mail',
       '***.${cpf.substring(3, 6)}.${cpf.substring(6, 9)}-**',
       '(44) 99999-8888',
       '20/05/1990',

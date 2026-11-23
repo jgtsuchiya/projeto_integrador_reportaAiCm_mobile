@@ -4,6 +4,7 @@ import 'package:reportaai_cm/core/auth/session_manager_provider.dart';
 import 'package:reportaai_cm/core/config/app_config_provider.dart';
 import 'package:reportaai_cm/features/auth/auth_providers.dart';
 import 'package:reportaai_cm/features/auth/data/repositories/api_auth_repository.dart';
+import 'package:reportaai_cm/features/auth/data/repositories/api_registration_repository.dart';
 
 import '../../support/fake_session_manager.dart';
 import '../../support/pump_app.dart';
@@ -19,6 +20,19 @@ void main() {
       );
 
       expect(container.read(authRepositoryProvider), isA<ApiAuthRepository>());
+    });
+  });
+
+  group('registrationRepositoryProvider', () {
+    test('deve ligar o contrato à implementação que chama a API', () {
+      final container = ProviderContainer.test(
+        overrides: [
+          appConfigProvider.overrideWithValue(testConfig),
+          sessionManagerProvider.overrideWithValue(FakeSessionManager()),
+        ],
+      );
+
+      expect(container.read(registrationRepositoryProvider), isA<ApiRegistrationRepository>());
     });
   });
 }

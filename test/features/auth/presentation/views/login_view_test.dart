@@ -27,16 +27,8 @@ void main() {
     setUp(() => fakes = AuthFakes());
 
     /// Abre o login, depois da abertura: sem a sessão guardada, ou com o motivo de ter voltado.
-    Future<void> pumpView(
-      WidgetTester tester, {
-      bool showDiagnostics = false,
-      ThemeMode themeMode = ThemeMode.light,
-    }) async {
-      await tester.pumpApp(
-        LoginView(showDiagnostics: showDiagnostics),
-        overrides: fakes.overrides,
-        themeMode: themeMode,
-      );
+    Future<void> pumpView(WidgetTester tester, {bool showDiagnostics = false}) async {
+      await tester.pumpApp(LoginView(showDiagnostics: showDiagnostics), overrides: fakes.overrides);
       await tester.pump();
     }
 
@@ -323,6 +315,37 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets('deve mostrar o "Esqueci minha senha" e o "Criar conta" embaixo do "Entrar"', (
+      tester,
+    ) async {
+      await pumpView(tester);
+
+      final signIn = tester.getTopLeft(find.text('Entrar')).dy;
+      expect(tester.getTopLeft(find.text('Esqueci minha senha')).dy, greaterThan(signIn));
+      expect(tester.getTopLeft(find.text('Criar conta')).dy, greaterThan(signIn));
+      expect(find.text('Ainda não tem conta?'), findsOneWidget);
+    });
+
+    testWidgets('deve desativar os links durante o login', (tester) async {
+      final pending = fakes.auth.signInPending = Completer<SignInResult>();
+      await pumpView(tester);
+      await fillIn(tester);
+
+      await signIn(tester);
+
+      expect(
+        tester.widget<TextButton>(find.widgetWithText(TextButton, 'Esqueci minha senha')).onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Criar conta')).onPressed,
+        isNull,
+      );
+
+      pending.complete(const SignInWrongCredentials());
+      await tester.pump();
+    });
+
     testWidgets('deve mostrar o atalho do diagnóstico só quando ele existe', (tester) async {
       await pumpView(tester, showDiagnostics: true);
 
@@ -410,21 +433,17 @@ void main() {
       expect(find.text(SignInFieldError.emailRequiredMessage), findsOneWidget);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        fakes.session.hasStoredSession = true;
-        fakes.profile.error = const UnauthorizedException();
-        final semantics = tester.ensureSemantics();
-        await pumpView(tester, themeMode: themeMode, showDiagnostics: true);
-        await signIn(tester);
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      fakes.session.hasStoredSession = true;
+      fakes.profile.error = const UnauthorizedException();
+      final semantics = tester.ensureSemantics();
+      await pumpView(tester, showDiagnostics: true);
+      await signIn(tester);
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

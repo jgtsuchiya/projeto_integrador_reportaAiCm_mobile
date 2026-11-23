@@ -8,9 +8,6 @@ import 'package:reportaai_cm/features/auth/domain/models/sign_in_result.dart';
 /// ([SignInFieldError]), ou um mapa vazio quando o login pode ser enviado. A senha é conferida
 /// como foi digitada, sem tirar os espaços.
 Map<SignInField, String> validateSignIn({required String email, required String password}) => {
-  if (email.trim().isEmpty)
-    SignInField.email: SignInFieldError.emailRequiredMessage
-  else if (!isValidEmail(email))
-    SignInField.email: SignInFieldError.emailInvalidMessage,
+  SignInField.email: ?validateEmail(email),
   if (password.isEmpty) SignInField.password: SignInFieldError.passwordRequiredMessage,
 };

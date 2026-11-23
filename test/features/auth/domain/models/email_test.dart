@@ -46,4 +46,19 @@ void main() {
       expect(isValidEmail('${'a' * 64}@example.com'), isTrue);
     });
   });
+
+  group('validateEmail', () {
+    test('deve pedir o e-mail vazio ou só com espaços', () {
+      expect(validateEmail(''), EmailMessages.missing);
+      expect(validateEmail('   '), 'Informe o e-mail.');
+    });
+
+    test('deve recusar o e-mail fora do formato', () {
+      expect(validateEmail('maria@exemplo'), 'E-mail inválido.');
+    });
+
+    test('deve aceitar o e-mail no formato, com os espaços das pontas', () {
+      expect(validateEmail(' Maria.Silva@Exemplo.com '), isNull);
+    });
+  });
 }
