@@ -20,17 +20,12 @@ void main() {
       expect(find.bySemanticsLabel('Carregando'), findsNothing);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar na verificação de contraste (${themeMode.name})', (tester) async {
-        final semantics = tester.ensureSemantics();
-        await tester.pumpApp(
-          const Scaffold(body: LoadingIndicator(message: 'Conferindo a API...')),
-          themeMode: themeMode,
-        );
+    testWidgets('deve passar na verificação de contraste', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpApp(const Scaffold(body: LoadingIndicator(message: 'Conferindo a API...')));
 
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

@@ -2,7 +2,7 @@
 
 App do cidadão do **ReportaAi Cm**, plataforma para que os moradores de **Campo Mourão (PR)** reportem buracos no asfalto e para que a prefeitura acompanhe e analise esses reportes.
 
-> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI), o login do cidadão, com a tela inicial com os dados dele, o cadastro pelo app, o "Esqueci minha senha", o aviso para confirmar o e-mail, a verificação em duas etapas no login, a área "Minha conta" (dados, senha, sessões abertas, verificação em duas etapas e exclusão da conta) e os reportes: abrir um reporte com a foto e a localização do aparelho, acompanhar os próprios reportes, editar e excluir. A validação dos reportes pelos outros cidadãos (o voto e os "Reportes perto de você") entra no próximo epic.
+> **Status:** em desenvolvimento (Projeto Integrador). Estão prontos a base do app (arquitetura, ambientes, cliente HTTP, navegação, tema, testes e CI), o login do cidadão, com a tela inicial com os dados dele, o cadastro pelo app, o "Esqueci minha senha", o aviso para confirmar o e-mail, a verificação em duas etapas no login, a área "Minha conta" (dados, senha, sessões abertas, verificação em duas etapas e exclusão da conta) e os reportes: abrir um reporte com a foto e a localização do aparelho, acompanhar os próprios reportes, editar e excluir, e validar os reportes dos outros cidadãos perto de você ("Está lá" ou "Não está lá"), até as 10 confirmações.
 
 ## Sumário
 
@@ -43,24 +43,24 @@ flowchart LR
 
 ## Stack
 
-| Camada              | Tecnologia                                               |
-| ------------------- | -------------------------------------------------------- |
-| Plataformas         | Android e iOS                                            |
-| Framework           | Flutter 3.47 (Dart 3.13), com a versão fixada pelo FVM   |
-| Interface           | Material 3 (`material_ui`), tema claro e escuro          |
-| Estado e injeção    | Riverpod 3.4 (`flutter_riverpod`), sem geração de código |
-| Navegação           | go_router 18                                             |
-| HTTP                | Dio 5.11                                                 |
-| Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)   |
-| Versão do app       | `package_info_plus` 10.2.2, para o `User-Agent`          |
-| Câmera              | `image_picker` 1.2.4, só a câmera (sem a galeria)        |
-| Tratamento da foto  | `flutter_image_compress` 2.5.1 (nativo)                  |
-| Localização         | `geolocator` 14.1.2                                      |
-| Idioma              | pt-BR, com `flutter_localizations` e `intl`              |
-| Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)    |
-| Testes              | `flutter_test`, `mocktail` e `integration_test`          |
-| Hooks e commits     | Husky, commitlint e lint-staged (os mesmos do backend)   |
-| Integração contínua | GitHub Actions                                           |
+| Camada              | Tecnologia                                                |
+| ------------------- | --------------------------------------------------------- |
+| Plataformas         | Android e iOS                                             |
+| Framework           | Flutter 3.47 (Dart 3.13), com a versão fixada pelo FVM    |
+| Interface           | Material 3 (`material_ui`), cores da UTFPR, só tema claro |
+| Estado e injeção    | Riverpod 3.4 (`flutter_riverpod`), sem geração de código  |
+| Navegação           | go_router 18                                              |
+| HTTP                | Dio 5.11                                                  |
+| Sessão              | SuperTokens, pelo `supertokens_flutter` 0.6.5 (header)    |
+| Versão do app       | `package_info_plus` 10.2.2, para o `User-Agent`           |
+| Câmera              | `image_picker` 1.2.4, só a câmera (sem a galeria)         |
+| Tratamento da foto  | `flutter_image_compress` 2.5.1 (nativo)                   |
+| Localização         | `geolocator` 14.1.2                                       |
+| Idioma              | pt-BR, com `flutter_localizations` e `intl`               |
+| Análise estática    | `very_good_analysis` 11 e `dart format` (100 colunas)     |
+| Testes              | `flutter_test`, `mocktail` e `integration_test`           |
+| Hooks e commits     | Husky, commitlint e lint-staged (os mesmos do backend)    |
+| Integração contínua | GitHub Actions                                            |
 
 Todas as dependências usam **versão exata** (sem `^`), no `pubspec.yaml` e no `package.json`, e o `pubspec.lock` é versionado.
 
@@ -176,9 +176,9 @@ Como o login, o cadastro, a segunda etapa, a "Minha conta", a sessão e o redire
 
 ## Abrindo um reporte
 
-Com o e-mail confirmado (passo 2 de [Entrando no app](#entrando-no-app)), o **Novo reporte** da tela inicial abre a câmera do aparelho. A localização é lida junto com a foto, e o envio só fica liberado com a precisão de até 50 m: num lugar fechado, vá para perto de uma janela ou para fora. Antes de enviar, o app avisa quando já existe um reporte a até 30 m. Os reportes ficam em **Meus reportes**, com o status, as confirmações, a edição e a exclusão.
+Com o e-mail confirmado (passo 2 de [Entrando no app](#entrando-no-app)), o **Novo reporte** da tela inicial abre a câmera do aparelho. A localização é lida junto com a foto, e o envio só fica liberado com a precisão de até 50 m: num lugar fechado, vá para perto de uma janela ou para fora. Antes de enviar, o app avisa quando já existe um reporte a até 30 m. Os reportes ficam em **Meus reportes**, com o status, as confirmações, a edição e a exclusão. Em **Reportes perto de você**, o cidadão vê os reportes em validação de outros cidadãos a até 500 m e vota se o buraco está lá: o voto pede a confirmação e confere a localização de agora ([como testar com duas contas](docs/REPORTS.md#testando-no-aparelho)).
 
-- **API:** precisa das rotas de `/api/reports` (o epic dos reportes do backend) e das migrations dos reportes na base (`npm run migration:run`).
+- **API:** precisa das rotas de `/api/reports` (os dois epics dos reportes do backend: a abertura e o voto) e das migrations dos reportes na base (`npm run migration:run`).
 - **Aparelho:** a câmera e o GPS são os do celular. Teste num Android físico: no Linux desktop, o "Novo reporte" não abre a câmera, e as outras telas dos reportes funcionam.
 - **Fora de Campo Mourão:** a API recusa a localização. Aumente a `REPORT_AREA_BOUNDS` no `.env` local do backend.
 
@@ -240,7 +240,7 @@ Rode todos pelo FVM, para usar a versão do Flutter do projeto.
 
 ### Ícone e splash
 
-O ícone e o splash são provisórios: um pino de localização branco sobre a cor-base do tema. As imagens ficam em [assets/branding/](assets/branding), e a configuração dos geradores, em [flutter_launcher_icons.yaml](flutter_launcher_icons.yaml) e [flutter_native_splash.yaml](flutter_native_splash.yaml). Para trocar, substitua as imagens (e a cor, se mudar) e rode:
+O ícone e o splash são o logo do app: um pino de localização branco sobre o laranja `#E65100`. O laranja é só do logo: o tema usa as cores da UTFPR ([ARCHITECTURE.md](docs/ARCHITECTURE.md#tema-idioma-e-componentes)). As imagens ficam em [assets/branding/](assets/branding), e a configuração dos geradores, em [flutter_launcher_icons.yaml](flutter_launcher_icons.yaml) e [flutter_native_splash.yaml](flutter_native_splash.yaml). Para trocar, substitua as imagens (e a cor, se mudar) e rode:
 
 ```bash
 fvm dart run flutter_launcher_icons
@@ -278,7 +278,7 @@ Cada funcionalidade é uma pasta independente, dividida em camadas. A regra de d
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                                                     | Camadas, regra de dependência, Riverpod, rede e erros da API, navegação, tema, nomes e como criar uma feature                                                                                                                         |
 | [docs/AUTH.md](docs/AUTH.md)                                                                     | Login, sessão e acesso: o SDK do SuperTokens, o `AuthController`, o redirect, o cadastro, o "Esqueci minha senha", a confirmação do e-mail, a segunda etapa, a "Minha conta", as regras RM01 a RM19 e como criar uma tela autenticada |
-| [docs/REPORTS.md](docs/REPORTS.md)                                                               | Reportes: a câmera, o tratamento da foto, a localização e as permissões, a `Idempotency-Key`, o cache das fotos, as regras RM20 a RM27 e como testar no aparelho e sem sair na rua                                                    |
+| [docs/REPORTS.md](docs/REPORTS.md)                                                               | Reportes: a câmera, o tratamento da foto, a localização e as permissões, a `Idempotency-Key`, o cache das fotos, a validação, as regras RM20 a RM30 e como testar no aparelho e sem sair na rua                                       |
 | [docs/TESTING.md](docs/TESTING.md)                                                               | Tipos de teste, o que testar em cada camada, `pumpApp`, fakes, fluxos, acessibilidade, cobertura e integração                                                                                                                         |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                                                               | Git Flow, padrão de commits, Pull Requests e releases                                                                                                                                                                                 |
 | [docs/sprints/sprint-3-configuracao.md](docs/sprints/sprint-3-configuracao.md)                   | Plano da sprint 3: configuração e arquitetura do app                                                                                                                                                                                  |

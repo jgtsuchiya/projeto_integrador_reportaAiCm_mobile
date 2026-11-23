@@ -258,5 +258,23 @@ void main() {
       expect(log(), isNot(contains('52.37')));
       expect(lines.first, contains('latitude=***&longitude=***&radiusMeters=30'));
     });
+
+    test('não deve mostrar a localização de quem vota (RM29)', () async {
+      adapter.reply(201, body: {'id': 'reporte-1'});
+
+      // Como o repositório envia o voto: o mapa, sem codificar antes.
+      await dio.post<Object?>(
+        '/reports/reporte-1/votes',
+        data: {
+          'vote': 'CONFIRM',
+          'location': {'latitude': -24.045812, 'longitude': -52.378901, 'accuracyMeters': 12.5},
+        },
+      );
+
+      expect(log(), isNot(contains('24.04')));
+      expect(log(), isNot(contains('52.37')));
+      expect(log(), isNot(contains('12.5')));
+      expect(log(), contains('"vote":"CONFIRM"'));
+    });
   });
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:reportaai_cm/app/routes.dart';
+import 'package:reportaai_cm/app/theme/app_theme.dart';
 import 'package:reportaai_cm/core/widgets/app_text_field.dart';
 import 'package:reportaai_cm/core/widgets/primary_button.dart';
 import 'package:reportaai_cm/core/widgets/scrollable_center.dart';
@@ -288,6 +289,7 @@ class _PhotoSection extends StatelessWidget {
               const SizedBox(height: 16),
               FilledButton.tonalIcon(
                 onPressed: onTakePhoto,
+                style: AppTheme.tonalButtonStyle,
                 icon: const Icon(Icons.photo_camera_outlined),
                 label: Text(action),
               ),
@@ -375,7 +377,11 @@ class _DuplicateWarning extends StatelessWidget {
               runSpacing: 8,
               children: [
                 TextButton(onPressed: onDismiss, child: const Text('É outro buraco')),
-                FilledButton.tonal(onPressed: onOpen, child: const Text('Ver o reporte')),
+                FilledButton.tonal(
+                  onPressed: onOpen,
+                  style: AppTheme.tonalButtonStyle,
+                  child: const Text('Ver o reporte'),
+                ),
               ],
             ),
           ],

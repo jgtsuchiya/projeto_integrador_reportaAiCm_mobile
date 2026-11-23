@@ -6,6 +6,7 @@ import 'package:reportaai_cm/features/reports/domain/models/report_description.d
 import 'package:reportaai_cm/features/reports/domain/models/report_draft.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_page.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_status.dart';
+import 'package:reportaai_cm/features/reports/domain/models/vote_type.dart';
 
 import '../../../../support/fake_report_repository.dart';
 import '../../../../support/sample_images.dart';
@@ -44,7 +45,33 @@ void main() {
       expect(votes(3), votes(3));
       expect(votes(3).hashCode, votes(3).hashCode);
       expect(votes(3), isNot(votes(4)));
-      expect(votes(3).toString(), 'ReportVotes(3 de 10 confirmações, 0 de 10 negativas)');
+      expect(
+        votes(3).toString(),
+        'ReportVotes(3 de 10 confirmações, 0 de 10 negativas, mine: null)',
+      );
+    });
+
+    test('deve comparar e descrever o voto do cidadão', () {
+      const confirmed = ReportVotes(
+        confirmations: 4,
+        rejections: 0,
+        confirmationsRequired: 10,
+        rejectionsRequired: 10,
+        mine: VoteType.confirm,
+      );
+
+      expect(confirmed, isNot(votes(4)));
+      expect(confirmed.hashCode, isNot(votes(4).hashCode));
+      expect(confirmed.toString(), contains('mine: confirm'));
+    });
+  });
+
+  group('VoteType', () {
+    test('deve ler o código da API e recusar o que não conhece', () {
+      expect(VoteType.fromApiName('CONFIRM'), VoteType.confirm);
+      expect(VoteType.fromApiName('DENY'), VoteType.deny);
+      expect(VoteType.fromApiName('UNSURE'), isNull);
+      expect(VoteType.confirm.apiName, 'CONFIRM');
     });
   });
 
@@ -75,8 +102,22 @@ void main() {
       expect(sampleReportWith(), sampleReport);
       expect(sampleReportWith().hashCode, sampleReport.hashCode);
       expect(sampleReportWith(confirmations: 4), isNot(sampleReport));
+      expect(sampleReportWith(canVote: true), isNot(sampleReport));
+      expect(sampleReportWith(canVote: true).hashCode, isNot(sampleReport.hashCode));
+      expect(sampleReport.canVote, isFalse);
       expect(sampleReport.photo.hashCode, sampleReportWith().photo.hashCode);
       expect(sampleReport.photo.toString(), contains('1600x1200'));
+    });
+
+    test('deve trocar só a distância', () {
+      final report = othersReport(distanceMeters: null, myVote: VoteType.deny);
+
+      final moved = report.withDistanceMeters(120);
+
+      expect(moved.distanceMeters, 120);
+      expect(moved.withDistanceMeters(null), report);
+      expect(moved.votes.mine, VoteType.deny);
+      expect(moved.canVote, report.canVote);
     });
 
     test('não deve mostrar a descrição nem as coordenadas no texto (RM27)', () {

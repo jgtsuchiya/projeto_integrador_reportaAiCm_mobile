@@ -8,6 +8,7 @@ import 'package:reportaai_cm/features/reports/domain/models/geo_location.dart';
 import 'package:reportaai_cm/features/reports/domain/models/prepared_photo.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_draft.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_status.dart';
+import 'package:reportaai_cm/features/reports/domain/models/vote_type.dart';
 
 import '../../../../support/fake_http_adapter.dart';
 import '../../../../support/fake_report_repository.dart';
@@ -342,6 +343,88 @@ void main() {
         adapter.failWith(DioExceptionType.connectionError);
 
         await expectLater(sut.delete(sampleReport.id), throwsA(isA<NetworkException>()));
+      });
+    });
+
+    group('vote', () {
+      const location = GeoLocation(latitude: -24.0459, longitude: -52.3788, accuracyMeters: 12);
+
+      Map<String, Object?> error(int status, String message) => {
+        'statusCode': status,
+        'error': 'Erro',
+        'message': message,
+      };
+
+      test('deve mandar o voto e a localização no POST /api/reports/:id/votes e devolver o '
+          'reporte atualizado (RM29 e RM30)', () async {
+        adapter.reply(
+          201,
+          body: {
+            ...reportJson,
+            'isMine': false,
+            'canDelete': false,
+            'votes': {
+              ...(reportJson['votes']! as Map<String, Object?>),
+              'confirmations': 4,
+              'mine': 'CONFIRM',
+            },
+          },
+        );
+
+        final report = await sut.vote(sampleReport.id, VoteType.confirm, location);
+
+        final request = adapter.requests.single;
+        expect(request.method, 'POST');
+        expect(request.uri.path, '/api/reports/${sampleReport.id}/votes');
+        expect(_sentBody(request), {
+          'vote': 'CONFIRM',
+          'location': {'latitude': -24.0459, 'longitude': -52.3788, 'accuracyMeters': 12},
+        });
+        expect(report.votes.confirmations, 4);
+        expect(report.votes.mine, VoteType.confirm);
+        expect(report.canVote, isFalse);
+      });
+
+      test('deve converter o 409 do voto repetido', () async {
+        adapter.reply(409, body: error(409, 'Você já votou neste reporte.'));
+
+        await expectLater(
+          sut.vote(sampleReport.id, VoteType.deny, location),
+          throwsA(
+            isA<ConflictException>().having(
+              (error) => error.message,
+              'message',
+              'Você já votou neste reporte.',
+            ),
+          ),
+        );
+      });
+
+      test('deve converter o 422 de quem está longe, com a mensagem da API', () async {
+        adapter.reply(
+          422,
+          body: error(422, 'Você precisa estar a até 500 m do reporte para votar.'),
+        );
+
+        await expectLater(
+          sut.vote(sampleReport.id, VoteType.confirm, location),
+          throwsA(
+            isA<BusinessRuleException>().having(
+              (error) => error.message,
+              'message',
+              'Você precisa estar a até 500 m do reporte para votar.',
+            ),
+          ),
+        );
+      });
+
+      test('deve converter o 404 do reporte excluído no meio do voto', () async {
+        adapter.reply(404, body: error(404, 'Reporte não encontrado.'));
+
+        await expectLater(
+          sut.vote(sampleReport.id, VoteType.confirm, location),
+          throwsA(isA<NotFoundException>()),
+        );
       });
     });
   });

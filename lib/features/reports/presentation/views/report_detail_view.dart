@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:reportaai_cm/app/routes.dart';
+import 'package:reportaai_cm/app/theme/app_colors.dart';
 import 'package:reportaai_cm/core/utils/date_formatters.dart';
 import 'package:reportaai_cm/core/widgets/error_view.dart';
 import 'package:reportaai_cm/core/widgets/loading_indicator.dart';
@@ -15,11 +16,13 @@ import 'package:reportaai_cm/features/reports/presentation/view_models/report_de
 import 'package:reportaai_cm/features/reports/presentation/widgets/report_location_card.dart';
 import 'package:reportaai_cm/features/reports/presentation/widgets/report_photo_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/widgets/report_status_label.dart';
+import 'package:reportaai_cm/features/reports/presentation/widgets/report_vote_bar.dart';
 
 /// O detalhe do reporte (`/reportes/:id`): a foto (o toque amplia), o status e o progresso (RM26),
 /// a descrição, as datas e a precisão da localização. "Editar" e "Excluir" aparecem só quando a
-/// API permite (RM25). No reporte de outro cidadão, a distância, quando a tela anterior a sabe, e
-/// nenhum dado do autor (RM27).
+/// API permite (RM25). No reporte de outro cidadão, o voto ("Está lá" e "Não está lá", com o
+/// `canVote`, ou o voto já dado), a distância, quando a tela anterior a sabe, e nenhum dado do
+/// autor (RM27 e RM29). Depois do voto, a tela mostra o reporte da resposta (RM30).
 ///
 /// Puxar para atualizar busca o reporte de novo.
 class ReportDetailView extends ConsumerStatefulWidget {
@@ -75,7 +78,7 @@ class _ReportDetailViewState extends ConsumerState<ReportDetailView> {
   Future<void> _enlargePhoto(Report report) => showDialog<void>(
     context: context,
     builder: (context) => Dialog.fullscreen(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.photoBackdrop,
       child: Stack(
         children: [
           Positioned.fill(
@@ -242,6 +245,10 @@ class _ReportDetails extends StatelessWidget {
           const SizedBox(height: 12),
           ReportConfirmationProgress(votes: report.votes),
         ],
+        if (ReportVoteBar.appliesTo(report)) ...[
+          const SizedBox(height: 16),
+          ReportVoteBar(report: report),
+        ],
         const SizedBox(height: 24),
         _Section(
           title: 'Descrição',
@@ -273,7 +280,7 @@ class _ReportDetails extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!report.isMine && distance != null)
-                Text('A $distance m de você', style: theme.textTheme.bodyLarge),
+                Text(distanceText(distance), style: theme.textTheme.bodyLarge),
               Text(accuracyText(report.location.accuracyMeters), style: theme.textTheme.bodyLarge),
               if (report.isMine)
                 Text('A localização não muda depois da abertura.', style: secondary),

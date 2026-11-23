@@ -17,7 +17,6 @@ class ConfigErrorApp extends StatelessWidget {
     return MaterialApp(
       title: appTitle,
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
       locale: appLocale,
       supportedLocales: const [appLocale],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,

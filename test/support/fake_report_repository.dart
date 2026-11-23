@@ -7,6 +7,7 @@ import 'package:reportaai_cm/features/reports/domain/models/report_draft.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_limits.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_page.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_status.dart';
+import 'package:reportaai_cm/features/reports/domain/models/vote_type.dart';
 import 'package:reportaai_cm/features/reports/domain/repositories/report_repository.dart';
 
 import 'sample_images.dart';
@@ -72,6 +73,8 @@ Report sampleReportWith({
   bool? isMine,
   bool? canEdit,
   bool? canDelete,
+  bool? canVote,
+  VoteType? myVote,
   DateTime? createdAt,
   DateTime? statusChangedAt,
   int? distanceMeters,
@@ -90,10 +93,12 @@ Report sampleReportWith({
     rejections: rejections ?? sampleReport.votes.rejections,
     confirmationsRequired: sampleReport.votes.confirmationsRequired,
     rejectionsRequired: sampleReport.votes.rejectionsRequired,
+    mine: myVote,
   ),
   isMine: isMine ?? sampleReport.isMine,
   canEdit: canEdit ?? sampleReport.canEdit,
   canDelete: canDelete ?? sampleReport.canDelete,
+  canVote: canVote ?? sampleReport.canVote,
   createdAt: createdAt ?? sampleReport.createdAt,
   updatedAt: sampleReport.updatedAt,
   statusChangedAt: statusChangedAt,
@@ -113,19 +118,36 @@ List<Report> myReports(int count) => [
     ),
 ];
 
-/// Um reporte aberto por outro cidadão, a [distanceMeters] daqui, como o `nearby` devolve.
-Report othersReport({String id = 'reporte-de-outro', int distanceMeters = 12}) => sampleReportWith(
+/// Um reporte em validação aberto por outro cidadão, a [distanceMeters] daqui, como o `nearby`
+/// devolve. Sem o voto do cidadão, ele pode votar ([canVote]); com o [myVote], não.
+Report othersReport({
+  String id = 'reporte-de-outro',
+  int? distanceMeters = 12,
+  String? description,
+  int? confirmations,
+  int? rejections,
+  ReportStatus? status,
+  VoteType? myVote,
+  bool? canVote,
+}) => sampleReportWith(
   id: id,
+  status: status,
+  description: description,
+  confirmations: confirmations,
+  rejections: rejections,
   isMine: false,
   canEdit: false,
   canDelete: false,
+  canVote: canVote ?? (myVote == null && (status ?? ReportStatus.pending) == ReportStatus.pending),
+  myVote: myVote,
   distanceMeters: distanceMeters,
 );
 
 /// Fake do [ReportRepository], escrito à mão como os outros fakes, com os reportes em memória,
 /// como a API: a abertura entra no começo dos [mine], a edição troca a descrição e a foto (com um
-/// id novo), e a exclusão tira o reporte. Cada método tem o erro e a espera da próxima chamada,
-/// e as chamadas ficam guardadas para o teste conferir.
+/// id novo), a exclusão tira o reporte, e o voto soma a contagem e muda o status no limite, como a
+/// API (RN39). Cada método tem o erro e a espera da próxima chamada, e as chamadas ficam guardadas
+/// para o teste conferir.
 final class FakeReportRepository implements ReportRepository {
   /// Os reportes do cidadão, do mais novo ao mais antigo.
   List<Report> mine = [];
@@ -163,6 +185,10 @@ final class FakeReportRepository implements ReportRepository {
   Exception? deleteError;
   Completer<void>? deletePending;
   final deleteCalls = <String>[];
+
+  Exception? voteError;
+  Completer<void>? votePending;
+  final voteCalls = <({String id, VoteType vote, GeoLocation location})>[];
 
   /// Os reportes criados por chave, para a repetição com a mesma `Idempotency-Key` (RN31).
   final _byIdempotencyKey = <String, Report>{};
@@ -304,6 +330,57 @@ final class FakeReportRepository implements ReportRepository {
     await _settle(deletePending, deleteError);
 
     mine = [...mine.where((report) => report.id != id)];
+  }
+
+  @override
+  Future<Report> vote(String id, VoteType vote, GeoLocation location) async {
+    voteCalls.add((id: id, vote: vote, location: location));
+    await _settle(votePending, voteError);
+
+    final report = _find(id);
+    if (report == null) throw const NotFoundException(message: 'Reporte não encontrado.');
+
+    final votes = report.votes;
+    final confirmations = votes.confirmations + (vote == VoteType.confirm ? 1 : 0);
+    final rejections = votes.rejections + (vote == VoteType.deny ? 1 : 0);
+    final status = confirmations >= votes.confirmationsRequired
+        ? ReportStatus.confirmed
+        : rejections >= votes.rejectionsRequired
+        ? ReportStatus.rejected
+        : report.status;
+
+    // Como a API: o reporte do voto volta sem a distância.
+    final voted = Report(
+      id: report.id,
+      status: status,
+      description: report.description,
+      location: report.location,
+      photo: report.photo,
+      votes: ReportVotes(
+        confirmations: confirmations,
+        rejections: rejections,
+        confirmationsRequired: votes.confirmationsRequired,
+        rejectionsRequired: votes.rejectionsRequired,
+        mine: vote,
+      ),
+      isMine: report.isMine,
+      canEdit: false,
+      canDelete: false,
+      createdAt: report.createdAt,
+      updatedAt: DateTime.utc(2026, 11, 22, 10),
+      statusChangedAt: status == report.status
+          ? report.statusChangedAt
+          : DateTime.utc(2026, 11, 22, 10),
+    );
+    others = [
+      for (final item in others)
+        if (item.id == id) voted else item,
+    ];
+    nearby = [
+      for (final item in nearby)
+        if (item.id == id) voted.withDistanceMeters(item.distanceMeters) else item,
+    ];
+    return voted;
   }
 
   Report? _find(String id) {

@@ -19,6 +19,7 @@ import 'package:reportaai_cm/features/health/presentation/views/diagnostics_view
 import 'package:reportaai_cm/features/home/presentation/views/home_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/edit_report_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/my_reports_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/nearby_reports_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/new_report_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/report_detail_view.dart';
 
@@ -104,16 +105,18 @@ GoRouter createRouter({
           GoRoute(path: 'excluir', builder: (context, state) => const DeleteAccountView()),
         ],
       ),
-      // As telas dos reportes ficam embaixo da `/reportes`, como as da conta. O `novo` vem antes
-      // do `:id`, para não ser lido como um id.
+      // As telas dos reportes ficam embaixo da `/reportes`, como as da conta. O `novo` e o
+      // `perto` vêm antes do `:id`, para não serem lidos como um id.
       GoRoute(
         path: AppRoutes.reports,
         builder: (context, state) => const MyReportsView(),
         routes: [
           GoRoute(path: 'novo', builder: (context, state) => const NewReportView()),
+          GoRoute(path: 'perto', builder: (context, state) => const NearbyReportsView()),
           GoRoute(
             path: ':id',
-            // A distância vem da busca dos reportes perto, como o aviso do reporte repetido.
+            // A distância vem da busca dos reportes perto: a lista deles e o aviso do reporte
+            // repetido.
             builder: (context, state) => ReportDetailView(
               reportId: state.pathParameters['id']!,
               distanceMeters: switch (state.extra) {

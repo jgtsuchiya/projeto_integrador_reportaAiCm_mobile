@@ -26,8 +26,8 @@ void main() {
     setUp(() => fakes = AuthFakes(signedIn: true));
 
     /// Abre a tela inicial com o Client já dentro.
-    Future<void> pumpView(WidgetTester tester, {ThemeMode themeMode = ThemeMode.light}) async {
-      await tester.pumpApp(const HomeView(), overrides: fakes.overrides, themeMode: themeMode);
+    Future<void> pumpView(WidgetTester tester) async {
+      await tester.pumpApp(const HomeView(), overrides: fakes.overrides);
       await tester.pump();
     }
 
@@ -188,17 +188,16 @@ void main() {
         expect(entry.onTap, isNotNull);
       });
 
-      testWidgets('deve mostrar a entrada "Reportes perto de você" desativada, para depois', (
-        tester,
-      ) async {
+      testWidgets('deve mostrar a entrada "Reportes perto de você", também sem o e-mail '
+          'confirmado (RM28)', (tester) async {
         await pumpView(tester);
 
         final entry = tester.widget<ListTile>(
           find.widgetWithText(ListTile, 'Reportes perto de você'),
         );
-        expect(entry.enabled, isFalse);
-        expect(find.textContaining('Em breve'), findsOneWidget);
-        expect(find.text('Reportes em breve'), findsNothing);
+        expect(entry.enabled, isTrue);
+        expect(entry.onTap, isNotNull);
+        expect(find.textContaining('Em breve'), findsNothing);
       });
     });
 
@@ -326,25 +325,21 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        final semantics = tester.ensureSemantics();
-        await pumpView(tester, themeMode: themeMode);
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpView(tester);
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
 
-        // Também com o aviso da atualização que falhou, em cima dos dados.
-        fakes.profile.error = const NetworkException();
-        await pullToRefresh(tester);
-        await tester.pumpAndSettle();
+      // Também com o aviso da atualização que falhou, em cima dos dados.
+      fakes.profile.error = const NetworkException();
+      await pullToRefresh(tester);
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

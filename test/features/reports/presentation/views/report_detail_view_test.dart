@@ -1,25 +1,33 @@
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:reportaai_cm/core/network/api_exception.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_draft.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_status.dart';
+import 'package:reportaai_cm/features/reports/domain/models/vote_type.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/report_detail_view.dart';
 
+import '../../../../support/auth_fakes.dart';
 import '../../../../support/fake_report_repository.dart';
 import '../../../../support/pump_app.dart';
 import '../../../../support/report_fakes.dart';
 
 final Finder _editButton = find.widgetWithText(OutlinedButton, 'Editar');
 final Finder _deleteButton = find.widgetWithText(OutlinedButton, 'Excluir');
+final Finder _confirmVoteButton = find.widgetWithText(FilledButton, 'Está lá');
 
 void main() {
   group('ReportDetailView', () {
+    late AuthFakes auth;
     late ReportFakes reports;
 
-    setUp(() => reports = ReportFakes());
+    setUp(() {
+      auth = verifiedAuthFakes();
+      reports = ReportFakes();
+    });
 
     /// Abre o detalhe do [id] por cima de outra tela, como pela lista, com a edição embaixo dele.
     Future<GoRouter> pumpView(
@@ -51,7 +59,10 @@ void main() {
       );
       addTearDown(router.dispose);
 
-      await tester.pumpRouter(router, overrides: reports.overrides);
+      await tester.pumpRouter(router, overrides: [...auth.overrides, ...reports.overrides]);
+      // O router do app só abre o detalhe com o Client dentro.
+      AuthFakes.startAuth(tester.container());
+      await tester.pumpAndSettle();
       unawaited(router.push('/reportes/$id', extra: extra));
       if (settle) {
         await tester.pumpAndSettle();
@@ -148,9 +159,8 @@ void main() {
       expect(find.text('Em acompanhamento'), findsOneWidget);
     });
 
-    testWidgets('deve mostrar a distância e nenhuma ação no reporte de outro cidadão (RM27)', (
-      tester,
-    ) async {
+    testWidgets('deve mostrar a distância, o voto e nenhuma ação do autor no reporte de outro '
+        'cidadão (RM27)', (tester) async {
       reports.repository.others = [othersReport(id: 'reporte-1')];
 
       await pumpView(tester, extra: 12);
@@ -159,6 +169,88 @@ void main() {
       expect(find.text('A localização não muda depois da abertura.'), findsNothing);
       expect(_editButton, findsNothing);
       expect(_deleteButton, findsNothing);
+      expect(find.text('O buraco ainda está lá?'), findsOneWidget);
+      expect(_confirmVoteButton, findsOneWidget);
+    });
+
+    testWidgets('não deve mostrar o voto no próprio reporte', (tester) async {
+      reports.repository.mine = [sampleReportWith(id: 'reporte-1')];
+
+      await pumpView(tester);
+
+      expect(find.text('O buraco ainda está lá?'), findsNothing);
+      expect(_confirmVoteButton, findsNothing);
+    });
+
+    group('voto', () {
+      Future<void> vote(WidgetTester tester) async {
+        await tapVisible(tester, _confirmVoteButton);
+        await tester.tap(
+          find.descendant(of: find.byType(AlertDialog), matching: find.text('Confirmar')),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('deve mostrar a contagem e o voto novos, sem buscar o reporte de novo (RM30)', (
+        tester,
+      ) async {
+        reports.repository.others = [othersReport(id: 'reporte-1')];
+        await pumpView(tester, extra: 12);
+
+        await vote(tester);
+
+        expect(find.text('4 de 10 confirmações'), findsOneWidget);
+        expect(find.text('Você confirmou'), findsOneWidget);
+        expect(_confirmVoteButton, findsNothing);
+        expect(find.text('A 12 m de você'), findsOneWidget, reason: 'A distância continua.');
+        expect(reports.repository.getByIdCalls, hasLength(1));
+      });
+
+      testWidgets('deve mostrar "Confirmado" depois do voto que chega a 10, sem recarregar a tela '
+          '(RM30)', (tester) async {
+        reports.repository.others = [othersReport(id: 'reporte-1', confirmations: 9)];
+        await pumpView(tester);
+
+        await vote(tester);
+
+        expect(find.text('Confirmado'), findsOneWidget);
+        expect(find.text('Confirmado por outros cidadãos em 22/11/2026'), findsOneWidget);
+        expect(find.text('Você confirmou'), findsOneWidget);
+        expect(find.text('Voto registrado. Com ele, o reporte foi confirmado.'), findsOneWidget);
+        expect(reports.repository.getByIdCalls, hasLength(1));
+      });
+
+      testWidgets('deve mostrar o voto já dado ao abrir', (tester) async {
+        reports.repository.others = [othersReport(id: 'reporte-1', myVote: VoteType.deny)];
+
+        await pumpView(tester);
+
+        expect(find.text('Você disse que não está lá'), findsOneWidget);
+      });
+
+      testWidgets('deve mostrar o aviso do e-mail no lugar do voto (RM20)', (tester) async {
+        auth = AuthFakes(signedIn: true);
+        reports.repository.others = [othersReport(id: 'reporte-1')];
+
+        await pumpView(tester);
+
+        expect(find.text('Confirme o seu e-mail'), findsOneWidget);
+        expect(_confirmVoteButton, findsNothing);
+      });
+
+      testWidgets('deve mostrar "Reporte não encontrado" quando o reporte some no meio do voto', (
+        tester,
+      ) async {
+        reports.repository.others = [othersReport(id: 'reporte-1')];
+        await pumpView(tester);
+        reports.repository
+          ..others = []
+          ..voteError = const NotFoundException(message: 'Reporte não encontrado.');
+
+        await vote(tester);
+
+        expect(find.text('Reporte não encontrado'), findsOneWidget);
+      });
     });
 
     testWidgets('deve ampliar a foto no toque e fechar', (tester) async {
@@ -296,28 +388,23 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        reports.repository.mine = [sampleReportWith(id: 'reporte-1', canEdit: true)];
-        tester.view
-          ..physicalSize = const Size(800, 2400)
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        final semantics = tester.ensureSemantics();
-        await tester.pumpApp(
-          const ReportDetailView(reportId: 'reporte-1'),
-          overrides: reports.overrides,
-          themeMode: themeMode,
-        );
-        await tester.pumpAndSettle();
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      reports.repository.mine = [sampleReportWith(id: 'reporte-1', canEdit: true)];
+      tester.view
+        ..physicalSize = const Size(800, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final semantics = tester.ensureSemantics();
+      await tester.pumpApp(
+        const ReportDetailView(reportId: 'reporte-1'),
+        overrides: [...auth.overrides, ...reports.overrides],
+      );
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

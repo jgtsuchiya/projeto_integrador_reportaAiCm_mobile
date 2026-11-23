@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:reportaai_cm/app/theme/success_colors.dart';
 import 'package:reportaai_cm/core/utils/date_formatters.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_status.dart';
@@ -29,7 +30,8 @@ String? reportStatusDetail(Report report) => switch (report.status) {
 };
 
 /// O status do reporte em texto, com o ícone e a cor (RM26): a cor ajuda, mas o texto diz tudo,
-/// sozinho.
+/// sozinho. Em validação fica no amarelo, confirmado no verde, descartado no vermelho de erro, e
+/// em acompanhamento no cinza.
 class ReportStatusLabel extends StatelessWidget {
   const new({required this.status, super.key});
 
@@ -38,15 +40,16 @@ class ReportStatusLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final success = SuccessColors.of(context);
     final (background, foreground, icon) = switch (status) {
       ReportStatus.pending => (
-        colors.secondaryContainer,
-        colors.onSecondaryContainer,
+        colors.primaryContainer,
+        colors.onPrimaryContainer,
         Icons.hourglass_top,
       ),
       ReportStatus.confirmed => (
-        colors.primaryContainer,
-        colors.onPrimaryContainer,
+        success.successContainer,
+        success.onSuccessContainer,
         Icons.check_circle_outline,
       ),
       ReportStatus.rejected => (

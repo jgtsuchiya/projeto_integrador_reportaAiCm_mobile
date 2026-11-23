@@ -1,12 +1,31 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:reportaai_cm/app/theme/app_theme.dart';
 import 'package:reportaai_cm/features/reports/domain/models/report_limits.dart';
 import 'package:reportaai_cm/features/reports/presentation/view_models/report_location.dart';
 
 /// A precisão como a tela mostra: "Precisão de 8 m", arredondada para cima, como a API guarda.
 String accuracyText(double accuracyMeters) => 'Precisão de ${accuracyMeters.ceil()} m';
 
-/// A localização do aparelho na abertura do reporte (RM21): a precisão, ou o que impede o envio,
-/// com a ação que resolve (o "Atualizar localização", o pedido da permissão, as configurações).
+/// A distância até o reporte, como as telas mostram: "A 120 m de você".
+String distanceText(int distanceMeters) =>
+    distanceMeters < 1 ? 'A menos de 1 m de você' : 'A $distanceMeters m de você';
+
+/// Para que a tela lê a localização: o texto do cartão diz o porquê de cada uma.
+enum LocationPurpose {
+  /// Mostrar onde fica o buraco, na abertura do reporte (RM21).
+  report,
+
+  /// Conferir se o cidadão está perto do buraco, no voto (RM29).
+  vote,
+
+  /// Buscar os reportes em validação perto do cidadão (RM28).
+  nearby,
+}
+
+/// A localização do aparelho na abertura do reporte (RM21), no voto (RM29) e nos "Reportes perto de
+/// você" (RM28): a precisão, ou o que impede seguir, com a ação que resolve (o "Atualizar
+/// localização", o pedido da permissão, as configurações). As regras são as mesmas nas três: o
+/// [purpose] só troca o porquê, no texto.
 class ReportLocationCard extends StatelessWidget {
   const new({
     required this.reading,
@@ -14,10 +33,12 @@ class ReportLocationCard extends StatelessWidget {
     required this.onRequestPermission,
     required this.onOpenAppSettings,
     required this.onOpenLocationSettings,
+    this.purpose = LocationPurpose.report,
     super.key,
   });
 
   final LocationReading reading;
+  final LocationPurpose purpose;
   final VoidCallback onRefresh;
   final VoidCallback onRequestPermission;
   final VoidCallback onOpenAppSettings;
@@ -32,6 +53,30 @@ class ReportLocationCard extends StatelessWidget {
       null => null,
     };
     const limit = ReportLimits.maxAccuracyMeters;
+    final (goal, permissionReason, deniedReason, serviceGoal) = switch (purpose) {
+      LocationPurpose.report => (
+        'enviar',
+        'Ela mostra onde fica o buraco. O app só lê a localização agora, para este reporte.',
+        'Sem ela, não dá para mostrar onde fica o buraco. Permita a localização para enviar o '
+            'reporte.',
+        'enviar o reporte',
+      ),
+      LocationPurpose.vote => (
+        'votar',
+        'Ela confere se você está perto do buraco. A localização não fica guardada.',
+        'Sem ela, não dá para conferir se você está perto do buraco. Permita a localização para '
+            'votar.',
+        'votar',
+      ),
+      LocationPurpose.nearby => (
+        'ver os reportes perto',
+        'Ela mostra os buracos reportados perto de você. O app só lê a localização agora, sem '
+            'guardar.',
+        'Sem ela, não dá para achar os reportes perto de você. Permita a localização para ver a '
+            'lista.',
+        'ver os reportes perto de você',
+      ),
+    };
 
     final (icon, title, text, action) = switch (reading.status) {
       LocationStatus.idle => (
@@ -55,7 +100,7 @@ class ReportLocationCard extends StatelessWidget {
       LocationStatus.inaccurate => (
         Icons.location_searching,
         'A localização está imprecisa',
-        '${accuracy ?? ''}. Para enviar, ela precisa ser de até $limit m: tente num lugar aberto, '
+        '${accuracy ?? ''}. Para $goal, ela precisa ser de até $limit m: tente num lugar aberto, '
             'longe de prédios e árvores.',
         ('Atualizar localização', onRefresh),
       ),
@@ -68,14 +113,13 @@ class ReportLocationCard extends StatelessWidget {
       LocationStatus.permissionNeeded => (
         Icons.location_on_outlined,
         'Precisamos da sua localização',
-        'Ela mostra onde fica o buraco. O app só lê a localização agora, para este reporte.',
+        permissionReason,
         ('Permitir a localização', onRequestPermission),
       ),
       LocationStatus.permissionDenied => (
         Icons.location_off_outlined,
         'Sem a permissão da localização',
-        'Sem ela, não dá para mostrar onde fica o buraco. Permita a localização para enviar o '
-            'reporte.',
+        deniedReason,
         ('Permitir a localização', onRequestPermission),
       ),
       LocationStatus.permissionDeniedForever => (
@@ -87,7 +131,7 @@ class ReportLocationCard extends StatelessWidget {
       LocationStatus.serviceDisabled => (
         Icons.location_off_outlined,
         'A localização do aparelho está desligada',
-        'Ligue a localização para enviar o reporte.',
+        'Ligue a localização para $serviceGoal.',
         ('Ativar a localização', onOpenLocationSettings),
       ),
       LocationStatus.failed => (
@@ -153,7 +197,11 @@ class ReportLocationCard extends StatelessWidget {
               Align(
                 alignment: AlignmentDirectional.centerEnd,
                 child: isBlocking
-                    ? FilledButton.tonal(onPressed: onPressed, child: Text(label))
+                    ? FilledButton.tonal(
+                        onPressed: onPressed,
+                        style: AppTheme.tonalButtonStyle,
+                        child: Text(label),
+                      )
                     : TextButton(onPressed: onPressed, child: Text(label)),
               ),
             ],

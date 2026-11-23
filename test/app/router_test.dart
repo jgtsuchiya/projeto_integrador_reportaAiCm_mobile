@@ -23,6 +23,7 @@ import 'package:reportaai_cm/features/health/presentation/views/diagnostics_view
 import 'package:reportaai_cm/features/home/presentation/views/home_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/edit_report_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/my_reports_view.dart';
+import 'package:reportaai_cm/features/reports/presentation/views/nearby_reports_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/new_report_view.dart';
 import 'package:reportaai_cm/features/reports/presentation/views/report_detail_view.dart';
 
@@ -94,6 +95,7 @@ void main() {
       for (final path in [
         AppRoutes.reports,
         AppRoutes.newReport,
+        AppRoutes.nearbyReports,
         AppRoutes.reportDetail('reporte-1'),
         AppRoutes.reportEdit('reporte-1'),
       ]) ...[(authenticated, path, null), (unauthenticated, path, AppRoutes.login)],
@@ -327,6 +329,7 @@ void main() {
 
       for (final (path, screen, below) in [
         (AppRoutes.newReport, NewReportView, MyReportsView),
+        (AppRoutes.nearbyReports, NearbyReportsView, MyReportsView),
         (AppRoutes.reportDetail('reporte-1'), ReportDetailView, MyReportsView),
         (AppRoutes.reportEdit('reporte-1'), EditReportView, ReportDetailView),
       ]) {
@@ -350,14 +353,16 @@ void main() {
         });
       }
 
-      testWidgets('não deve ler o "novo" como o id de um reporte', (tester) async {
-        await openReportsApp(tester);
+      for (final path in [AppRoutes.newReport, AppRoutes.nearbyReports]) {
+        testWidgets('não deve ler o $path como o id de um reporte', (tester) async {
+          await openReportsApp(tester);
 
-        router(tester).go(AppRoutes.newReport);
-        await tester.pumpAndSettle();
+          router(tester).go(path);
+          await tester.pumpAndSettle();
 
-        expect(reports.repository.getByIdCalls, isEmpty);
-      });
+          expect(reports.repository.getByIdCalls, isEmpty);
+        });
+      }
     });
 
     testWidgets('deve manter as telas abertas por cima quando o perfil muda', (tester) async {

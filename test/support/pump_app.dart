@@ -20,20 +20,13 @@ const screenBelow = 'Tela de baixo';
 extension PumpApp on WidgetTester {
   /// Monta o [widget] como uma tela do app: `ProviderScope` (com a [config] e os [overrides]),
   /// tema e idioma pt-BR, sem as rotas. Um componente solto precisa de um `Scaffold` em volta.
-  Future<void> pumpApp(
-    Widget widget, {
-    List<Override> overrides = const [],
-    AppConfig? config,
-    ThemeMode themeMode = ThemeMode.light,
-  }) {
+  Future<void> pumpApp(Widget widget, {List<Override> overrides = const [], AppConfig? config}) {
     return pumpWidget(
       _scope(
         overrides: overrides,
         config: config,
         child: MaterialApp(
           theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: themeMode,
           locale: appLocale,
           supportedLocales: const [appLocale],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -55,7 +48,6 @@ extension PumpApp on WidgetTester {
         config: config,
         child: MaterialApp.router(
           theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
           locale: appLocale,
           supportedLocales: const [appLocale],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,

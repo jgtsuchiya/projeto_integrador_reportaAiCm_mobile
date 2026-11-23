@@ -44,6 +44,10 @@ abstract final class AppRoutes {
   /// para `novo` não ser lido como um id.
   static const newReport = '/reportes/novo';
 
+  /// "Reportes perto de você": os reportes em validação a até 500 m, com o voto (RM28 a RM30).
+  /// Também declarada antes do detalhe, para `perto` não ser lido como um id.
+  static const nearbyReports = '/reportes/perto';
+
   /// O detalhe do reporte [id].
   static String reportDetail(String id) => '$reports/${Uri.encodeComponent(id)}';
 
