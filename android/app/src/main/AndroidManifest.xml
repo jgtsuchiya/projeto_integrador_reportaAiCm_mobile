@@ -2,6 +2,12 @@
     <!-- O Flutter só declara a INTERNET nos manifests de debug e de profile. Sem ela aqui,
          o build de release não acessa a rede. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- A localização do reporte e do voto (RM21). A FINE dá a precisão do GPS, e a COARSE é a
+         que o Android 12 ou mais novo oferece quando o cidadão escolhe a localização aproximada.
+         A CAMERA não entra: o image_picker abre o app da câmera do aparelho, e com ela no
+         manifest o Android passaria a exigi-la também para isso. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- Sem backup automático: o SDK do SuperTokens guarda os tokens da sessão no
          SharedPreferences, que iria para o backup na nuvem. -->
     <application

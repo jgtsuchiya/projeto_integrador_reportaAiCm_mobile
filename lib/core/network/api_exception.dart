@@ -57,13 +57,12 @@ final class ValidationException extends ApiException {
   }
 }
 
-/// 401: sem sessão, sessão expirada ou senha de confirmação incorreta (com o [field]).
+/// 401: sem sessão ou sessão expirada. A API só responde 401 para a sessão: a senha de
+/// confirmação incorreta é um 422 ([BusinessRuleException] com o `field`).
 final class UnauthorizedException extends ApiException {
-  const new({String? message, this.field}) : super(message ?? defaultMessage);
+  const new({String? message}) : super(message ?? defaultMessage);
 
   static const defaultMessage = 'Sua sessão expirou. Entre de novo.';
-
-  final String? field;
 }
 
 /// 403 de permissão: o papel do usuário não pode fazer a operação.
@@ -97,11 +96,15 @@ final class ConflictException extends ApiException {
   final String? field;
 }
 
-/// 422: a operação quebra uma regra de negócio.
+/// 422: a operação quebra uma regra de negócio. O [field] diz o campo recusado, quando a regra é
+/// de um campo, como a senha de confirmação incorreta (`currentPassword` ou `password`) e o
+/// código errado da segunda etapa (`code`).
 final class BusinessRuleException extends ApiException {
-  const new({String? message}) : super(message ?? defaultMessage);
+  const new({String? message, this.field}) : super(message ?? defaultMessage);
 
   static const defaultMessage = 'Não foi possível concluir a operação.';
+
+  final String? field;
 }
 
 /// 429: muitas requisições do mesmo IP. O [retryAfter] vem do header `Retry-After` (segundos).

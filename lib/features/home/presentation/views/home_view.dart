@@ -2,18 +2,23 @@ import 'dart:async';
 
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:reportaai_cm/app/routes.dart';
 import 'package:reportaai_cm/core/widgets/scrollable_center.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_state.dart';
 import 'package:reportaai_cm/features/auth/presentation/widgets/email_verification_notice.dart';
 import 'package:reportaai_cm/features/auth/presentation/widgets/sign_out_button.dart';
 import 'package:reportaai_cm/features/home/presentation/view_models/home_view_model.dart';
-import 'package:reportaai_cm/features/home/presentation/widgets/profile_card.dart';
+import 'package:reportaai_cm/features/profile/presentation/widgets/profile_card.dart';
 
 /// Tela inicial (`/inicio`), a primeira com a sessão aberta: a saudação, o aviso do e-mail ainda
-/// não confirmado (RM14), os dados do usuário e o "Sair". O redirect só abre esta tela com o
-/// Client dentro.
+/// não confirmado (RM14), as entradas dos reportes, os dados do usuário, a "Minha conta" e o
+/// "Sair". O redirect só abre esta tela com o Client dentro.
+///
+/// O "Novo reporte" só aparece com o e-mail confirmado: sem ele, o aviso do e-mail fica no lugar
+/// (RM20).
 ///
 /// Puxar para atualizar busca o perfil de novo. Se a atualização falhar, os dados já mostrados
 /// continuam na tela, com o aviso do erro em cima deles.
@@ -43,7 +48,18 @@ class _HomeViewState extends ConsumerState<HomeView> {
     final refreshError = ref.watch(homeViewModelProvider).refreshError;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ReportaAi Cm'), actions: const [SignOutButton()]),
+      appBar: AppBar(
+        title: const Text('ReportaAi Cm'),
+        actions: [
+          // Por cima da tela inicial: o "voltar" volta para ela.
+          IconButton(
+            onPressed: () => unawaited(context.push(AppRoutes.account)),
+            tooltip: 'Minha conta',
+            icon: const Icon(Icons.account_circle_outlined),
+          ),
+          const SignOutButton(),
+        ],
+      ),
       body: SafeArea(
         child: profile == null
             ? const SizedBox.shrink()
@@ -70,14 +86,22 @@ class _HomeViewState extends ConsumerState<HomeView> {
                               onRefresh: () => unawaited(_refreshIndicator.currentState?.show()),
                             ),
                             const SizedBox(height: 24),
-                            // Só com o e-mail ainda não confirmado (RM14).
+                            // Só com o e-mail ainda não confirmado (RM14). Ele toma o lugar do
+                            // "Novo reporte" (RM20).
                             if (profile.emailVerifiedAt == null) ...[
                               const EmailVerificationNotice(),
                               const SizedBox(height: 16),
+                            ] else ...[
+                              FilledButton.icon(
+                                onPressed: () => unawaited(context.push(AppRoutes.newReport)),
+                                icon: const Icon(Icons.add_a_photo_outlined),
+                                label: const Text('Novo reporte'),
+                              ),
+                              const SizedBox(height: 16),
                             ],
-                            ProfileCard(profile: profile),
+                            const _ReportsCard(),
                             const SizedBox(height: 16),
-                            const _ReportsSoonCard(),
+                            ProfileCard(profile: profile),
                           ],
                         ),
                       ),
@@ -152,41 +176,34 @@ class _RefreshErrorNotice extends StatelessWidget {
   }
 }
 
-/// O aviso de que os reportes chegam em breve, sem ação nesta versão.
-class _ReportsSoonCard extends StatelessWidget {
+/// As entradas dos reportes: "Meus reportes" e "Reportes perto de você", a validação dos reportes
+/// dos outros cidadãos (RM28).
+class _ReportsCard extends StatelessWidget {
   const new();
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Card.outlined(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.add_road, size: 32, color: theme.colorScheme.primary),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Reportes em breve', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Logo você vai poder reportar os buracos da cidade e acompanhar cada reporte '
-                    'por aqui.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.list_alt_outlined),
+            title: const Text('Meus reportes'),
+            subtitle: const Text('Acompanhe os buracos que você reportou'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => unawaited(context.push(AppRoutes.reports)),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.near_me_outlined),
+            title: const Text('Reportes perto de você'),
+            subtitle: const Text('Confirme os buracos que outros cidadãos reportaram'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => unawaited(context.push(AppRoutes.nearbyReports)),
+          ),
+        ],
       ),
     );
   }

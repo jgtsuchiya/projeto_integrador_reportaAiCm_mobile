@@ -5,7 +5,9 @@ import 'package:reportaai_cm/core/network/api_exception.dart';
 import 'package:reportaai_cm/features/auth/domain/models/sign_in_result.dart';
 import 'package:reportaai_cm/features/auth/presentation/controllers/auth_state.dart';
 import 'package:reportaai_cm/features/auth/presentation/view_models/login_view_model.dart';
+import 'package:reportaai_cm/features/auth/presentation/view_models/second_factor_view_model.dart';
 import 'package:reportaai_cm/features/auth/presentation/views/login_view.dart';
+import 'package:reportaai_cm/features/auth/presentation/views/second_factor_view.dart';
 import 'package:reportaai_cm/features/auth/presentation/views/splash_view.dart';
 import 'package:reportaai_cm/features/home/presentation/views/home_view.dart';
 
@@ -114,17 +116,19 @@ void main() {
       });
 
       testWidgets(
-        'deve encerrar a sessão pendente da segunda etapa e mostrar o aviso no login (RM08)',
+        'deve abrir a tela do código com a sessão pendente da segunda etapa, sem sair dela (RM18)',
         (tester) async {
           fakes.session.secondFactorPending = true;
           final routes = await openWholeApp(tester, fakes);
 
           await tester.pumpAndSettle();
 
-          expect(routes, [AppRoutes.splash, AppRoutes.login]);
-          expect(find.text(UnauthenticatedReason.secondFactorPending.message), findsOneWidget);
-          expect(fakes.session.signOutCalls, 1);
-          expect(fakes.session.hasStoredSession, isFalse);
+          expect(routes, [AppRoutes.splash, AppRoutes.secondFactor]);
+          expect(find.byType(SecondFactorView), findsOneWidget);
+          expect(fakes.session.signOutCalls, 0);
+          expect(fakes.session.hasStoredSession, isTrue);
+          expect(fakes.profile.calls, 0, reason: 'A sessão pendente não chama o /users/me.');
+          await tester.pump(SecondFactorViewModel.resendInterval);
         },
       );
     });
@@ -168,7 +172,7 @@ void main() {
       });
 
       testWidgets(
-        'deve encerrar a sessão pendente da segunda etapa e mostrar o aviso no login (RM08)',
+        'deve ir para a tela do código depois do login com a verificação em duas etapas (RM18)',
         (tester) async {
           fakes.session.secondFactorPending = true;
           final routes = await openWholeApp(tester, fakes);
@@ -176,11 +180,11 @@ void main() {
 
           await _signIn(tester, email: clientProfile.email);
 
-          expect(routes, [AppRoutes.splash, AppRoutes.login]);
-          expect(find.text(UnauthenticatedReason.secondFactorPending.message), findsOneWidget);
+          expect(routes, [AppRoutes.splash, AppRoutes.login, AppRoutes.secondFactor]);
+          expect(find.byType(SecondFactorView), findsOneWidget);
           expect(fakes.profile.calls, 0);
-          expect(fakes.session.signOutCalls, 1);
-          expect(fakes.session.hasStoredSession, isFalse);
+          expect(fakes.session.signOutCalls, 0);
+          await tester.pump(SecondFactorViewModel.resendInterval);
         },
       );
     });

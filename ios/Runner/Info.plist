@@ -26,6 +26,11 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<!-- Os textos das permissões, que o iOS mostra na janela do pedido (RM21). -->
+		<key>NSCameraUsageDescription</key>
+		<string>A câmera tira a foto do buraco que você reporta.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>A localização mostra onde fica o buraco que você reporta e confere se você está perto do reporte em que vota.</string>
 		<!-- Libera HTTP sem TLS só para endereços locais (localhost e .local), para a API de
 	     desenvolvimento. Endereços IP já ficam fora do ATS. -->
 		<key>NSAppTransportSecurity</key>

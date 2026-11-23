@@ -22,15 +22,10 @@ void main() {
 
     setUp(() => fakes = AuthFakes());
 
-    Future<void> pumpView(
-      WidgetTester tester, {
-      String initialEmail = _email,
-      ThemeMode themeMode = ThemeMode.light,
-    }) async {
+    Future<void> pumpView(WidgetTester tester, {String initialEmail = _email}) async {
       await tester.pumpApp(
         ForgotPasswordView(initialEmail: initialEmail),
         overrides: fakes.overrides,
-        themeMode: themeMode,
       );
       await tester.pump();
     }
@@ -224,26 +219,22 @@ void main() {
       await tester.pump(const Duration(minutes: 1));
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        tester.view
-          ..physicalSize = const Size(800, 1600)
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        final semantics = tester.ensureSemantics();
-        await pumpView(tester, themeMode: themeMode);
-        await send(tester);
-        // O botão volta a ficar ativo no fim da espera, com a animação da cor.
-        await tester.pump(const Duration(minutes: 1));
-        await tester.pumpAndSettle();
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      tester.view
+        ..physicalSize = const Size(800, 1600)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final semantics = tester.ensureSemantics();
+      await pumpView(tester);
+      await send(tester);
+      // O botão volta a ficar ativo no fim da espera, com a animação da cor.
+      await tester.pump(const Duration(minutes: 1));
+      await tester.pumpAndSettle();
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

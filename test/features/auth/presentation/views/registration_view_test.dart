@@ -36,12 +36,8 @@ void main() {
     setUp(() => fakes = AuthFakes());
 
     /// Abre o cadastro sozinho, sem as rotas, depois da abertura sem sessão.
-    Future<void> pumpView(WidgetTester tester, {ThemeMode themeMode = ThemeMode.light}) async {
-      await tester.pumpApp(
-        const RegistrationView(),
-        overrides: fakes.overrides,
-        themeMode: themeMode,
-      );
+    Future<void> pumpView(WidgetTester tester) async {
+      await tester.pumpApp(const RegistrationView(), overrides: fakes.overrides);
       await tester.pump();
     }
 
@@ -491,29 +487,25 @@ void main() {
       expect(find.text('Informe a data de nascimento.'), findsOneWidget);
     });
 
-    for (final themeMode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('deve passar nas verificações de acessibilidade (${themeMode.name})', (
-        tester,
-      ) async {
-        fakes.registration.result = const RegistrationFieldErrors({
-          RegistrationField.email: 'E-mail já cadastrado.',
-        }, alreadyInUse: RegistrationField.email);
-        // Uma tela alta, com o formulário inteiro à vista: um botão cortado pela rolagem
-        // reprovaria o tamanho do toque sem ser um problema da tela.
-        tester.view
-          ..physicalSize = const Size(800, 2400)
-          ..devicePixelRatio = 1;
-        addTearDown(tester.view.reset);
-        final semantics = tester.ensureSemantics();
-        await pumpView(tester, themeMode: themeMode);
-        await fillIn(tester);
-        await create(tester);
+    testWidgets('deve passar nas verificações de acessibilidade', (tester) async {
+      fakes.registration.result = const RegistrationFieldErrors({
+        RegistrationField.email: 'E-mail já cadastrado.',
+      }, alreadyInUse: RegistrationField.email);
+      // Uma tela alta, com o formulário inteiro à vista: um botão cortado pela rolagem
+      // reprovaria o tamanho do toque sem ser um problema da tela.
+      tester.view
+        ..physicalSize = const Size(800, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final semantics = tester.ensureSemantics();
+      await pumpView(tester);
+      await fillIn(tester);
+      await create(tester);
 
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
-      });
-    }
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    });
   });
 }

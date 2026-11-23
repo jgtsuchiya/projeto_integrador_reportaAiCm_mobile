@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -12,23 +14,19 @@ import 'package:reportaai_cm/core/config/app_config_provider.dart';
 /// Configuração dos testes que não definem a própria.
 final testConfig = AppConfig(apiUrl: 'http://localhost:3000');
 
+/// O texto da tela de baixo do [PumpApp.pumpPushed].
+const screenBelow = 'Tela de baixo';
+
 extension PumpApp on WidgetTester {
   /// Monta o [widget] como uma tela do app: `ProviderScope` (com a [config] e os [overrides]),
   /// tema e idioma pt-BR, sem as rotas. Um componente solto precisa de um `Scaffold` em volta.
-  Future<void> pumpApp(
-    Widget widget, {
-    List<Override> overrides = const [],
-    AppConfig? config,
-    ThemeMode themeMode = ThemeMode.light,
-  }) {
+  Future<void> pumpApp(Widget widget, {List<Override> overrides = const [], AppConfig? config}) {
     return pumpWidget(
       _scope(
         overrides: overrides,
         config: config,
         child: MaterialApp(
           theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: themeMode,
           locale: appLocale,
           supportedLocales: const [appLocale],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -50,7 +48,6 @@ extension PumpApp on WidgetTester {
         config: config,
         child: MaterialApp.router(
           theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
           locale: appLocale,
           supportedLocales: const [appLocale],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
@@ -58,6 +55,40 @@ extension PumpApp on WidgetTester {
         ),
       ),
     );
+  }
+
+  /// Monta o [screen] aberto com o `push` por cima de uma tela de baixo ([screenBelow]), como as
+  /// telas da conta por cima da "Minha conta". Assim, o `context.pop()` da tela funciona, e o
+  /// teste confere que ela fechou.
+  ///
+  /// O [beforePush] roda com a tela de baixo já montada, antes de abrir o [screen], como a leitura
+  /// do `AuthController` (o `AuthFakes.startAuth`), que o router do app faz antes de qualquer tela
+  /// da conta abrir.
+  Future<GoRouter> pumpPushed(
+    Widget screen, {
+    List<Override> overrides = const [],
+    void Function(ProviderContainer container)? beforePush,
+  }) async {
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const Scaffold(body: Text(screenBelow)),
+        ),
+        GoRoute(path: '/tela', builder: (context, state) => screen),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await pumpRouter(router, overrides: overrides);
+    if (beforePush != null) {
+      beforePush(container());
+      await pumpAndSettle();
+    }
+    unawaited(router.push('/tela'));
+    await pumpAndSettle();
+
+    return router;
   }
 
   /// Monta o app inteiro, como o `main`: as rotas do `routerProvider`, com o `AuthController`

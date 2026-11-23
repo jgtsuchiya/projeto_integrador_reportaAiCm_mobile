@@ -52,6 +52,18 @@ final class ApiAuthRepository implements AuthRepository {
   Future<bool> isSecondFactorPending() => callApi(_session.isSecondFactorPending);
 
   @override
+  Future<void> verifyLoginCode(String code) => callApi(() async {
+    // A resposta é um 204, sem corpo. O interceptor do SDK guarda o access token novo, com a
+    // claim `mfa-verified` em `true`.
+    await _dio.post<Object?>('/mfa/verify', data: {'code': code.trim()});
+  });
+
+  @override
+  Future<void> resendLoginCode() => callApi(() async {
+    await _dio.post<Object?>('/mfa/code');
+  });
+
+  @override
   Future<void> requestPasswordReset(String email) => callApi(() async {
     // A resposta é sempre um 204, sem corpo, com ou sem conta (RN20).
     await _dio.post<Object?>('/password-resets', data: {'email': normalizeEmail(email)});

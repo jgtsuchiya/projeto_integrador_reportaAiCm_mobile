@@ -10,8 +10,8 @@ enum UnauthenticatedReason {
   /// O papel não é o CLIENT: o ADM e o SuperAdm usam o painel web (RM01).
   roleNotAllowed('Este aplicativo é para cidadãos. Administradores usam o painel web.'),
 
-  /// A sessão está pendente da segunda etapa do login, e a tela do código ainda não existe (RM08).
-  secondFactorPending('A verificação em duas etapas ainda não está disponível no app.');
+  /// O Client excluiu a própria conta, e o app apagou a sessão do aparelho (RM17).
+  accountDeleted('Sua conta foi excluída.');
 
   new(this.message);
 
@@ -55,6 +55,22 @@ final class AuthUnauthenticated extends AuthState {
 
   @override
   String toString() => 'AuthUnauthenticated(reason: ${reason?.name})';
+}
+
+/// O login passou pela senha, e a sessão está pendente da segunda etapa: falta o código da
+/// verificação em duas etapas, enviado por e-mail (RN25 e RM18). Fica na tela do código, e nenhuma
+/// outra rota com sessão abre.
+final class AuthSecondFactorPending extends AuthState {
+  const new();
+
+  @override
+  bool operator ==(Object other) => other is AuthSecondFactorPending;
+
+  @override
+  int get hashCode => (AuthSecondFactorPending).hashCode;
+
+  @override
+  String toString() => 'AuthSecondFactorPending()';
 }
 
 /// O Client entrou: a sessão está aberta, e o [profile] veio do `GET /api/users/me`.

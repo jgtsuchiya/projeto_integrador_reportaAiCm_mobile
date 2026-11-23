@@ -20,12 +20,13 @@ class PrimaryButton extends StatelessWidget {
 
     final colorScheme = Theme.of(context).colorScheme;
 
-    // Carregando, o botão fica sem ação, mas com a cor de ativo: não é um botão desativado.
+    // Carregando, o botão fica sem ação, mas com a cor de ativo (a do `filledButtonTheme`, o
+    // amarelo com a tinta por cima): não é um botão desativado.
     return FilledButton(
       onPressed: null,
       style: FilledButton.styleFrom(
-        disabledBackgroundColor: colorScheme.primary,
-        disabledForegroundColor: colorScheme.onPrimary,
+        disabledBackgroundColor: colorScheme.primaryContainer,
+        disabledForegroundColor: colorScheme.onPrimaryContainer,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -34,7 +35,7 @@ class PrimaryButton extends StatelessWidget {
             dimension: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: colorScheme.onPrimary,
+              color: colorScheme.onPrimaryContainer,
               semanticsLabel: 'Carregando',
             ),
           ),

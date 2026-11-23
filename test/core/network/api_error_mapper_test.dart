@@ -54,19 +54,18 @@ void main() {
       expect(sut.messageFor('email'), isNull);
     });
 
-    test('deve converter o 401 da aplicação em UnauthorizedException, com o campo', () async {
-      adapter.reply(
-        401,
-        body: appError(401, 'Senha atual incorreta.', {'field': 'currentPassword'}),
-      );
+    test('deve converter o 401 da aplicação em UnauthorizedException, com a mensagem', () async {
+      adapter.reply(401, body: appError(401, 'Sessão encerrada.'));
 
       final sut = await errorOf();
 
       expect(
         sut,
-        isA<UnauthorizedException>()
-            .having((error) => error.message, 'message', 'Senha atual incorreta.')
-            .having((error) => error.field, 'field', 'currentPassword'),
+        isA<UnauthorizedException>().having(
+          (error) => error.message,
+          'message',
+          'Sessão encerrada.',
+        ),
       );
     });
 
@@ -137,6 +136,20 @@ void main() {
 
       expect(sut, isA<BusinessRuleException>());
       expect(sut.message, 'Aguarde 1 minuto para pedir outro e-mail.');
+      expect((sut as BusinessRuleException).field, isNull);
+    });
+
+    test('deve converter o 422 da senha de confirmação incorreta, com o campo', () async {
+      adapter.reply(422, body: appError(422, 'Senha incorreta.', {'field': 'currentPassword'}));
+
+      final sut = await errorOf();
+
+      expect(
+        sut,
+        isA<BusinessRuleException>()
+            .having((error) => error.message, 'message', 'Senha incorreta.')
+            .having((error) => error.field, 'field', 'currentPassword'),
+      );
     });
 
     test('deve converter o 429 em RateLimitException, com o Retry-After', () async {

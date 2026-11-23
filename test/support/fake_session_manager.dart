@@ -8,7 +8,7 @@ final class FakeSessionManager implements SessionManager {
   /// Se há uma sessão guardada. O [signOut] e o [expire] a apagam.
   bool hasStoredSession = false;
 
-  /// A resposta do [isSecondFactorPending] (RM08).
+  /// A resposta do [isSecondFactorPending] (RM18). O código certo da segunda etapa a desliga.
   bool secondFactorPending = false;
 
   /// Lançado na próxima chamada do [isSecondFactorPending], como a renovação da sessão sem rede
@@ -22,6 +22,11 @@ final class FakeSessionManager implements SessionManager {
   Completer<void>? signOutPending;
 
   int signOutCalls = 0;
+
+  /// O evento que o [signOut] avisa. O `expired` imita o SDK quando a sessão já não existe na API,
+  /// como depois da exclusão da conta: o signout e a renovação são recusados, e o SDK apaga os
+  /// tokens como se a sessão tivesse vencido.
+  SessionEvent signOutEvent = SessionEvent.signedOut;
 
   final _events = StreamController<SessionEvent>.broadcast();
 
@@ -56,6 +61,6 @@ final class FakeSessionManager implements SessionManager {
     if (error != null) throw error;
 
     hasStoredSession = false;
-    _events.add(SessionEvent.signedOut);
+    _events.add(signOutEvent);
   }
 }
